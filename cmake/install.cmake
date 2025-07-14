@@ -5,7 +5,7 @@ install(TARGETS blackbase
 )
 
 if (TARGET blackbase_obj)
-    install(TARGET blackbase_obj)
+    install(TARGETS blackbase_obj EXPORT BlackBaseTargets)
 endif()
 
 install(EXPORT BlackBaseTargets

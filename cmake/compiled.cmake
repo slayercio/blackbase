@@ -2,8 +2,10 @@ file(GLOB_RECURSE BLACKBASE_SOURCES "src/**.cpp")
 
 if(BLACKBASE_BUILD_SHARED)
     add_library(blackbase_obj SHARED ${BLACKBASE_SOURCES})
-else()
+elseif(BLACKBASE_BUILD_STATIC)
     add_library(blackbase_obj STATIC ${BLACKBASE_SOURCES})
+else()
+    message(FATAL_ERROR "No build type specified. Set BLACKBASE_BUILD_SHARED or BLACKBASE_BUILD_STATIC.")
 endif()
 
 target_compile_definitions(blackbase_obj
@@ -34,7 +36,7 @@ target_precompile_headers(blackbase_obj
 
 target_link_libraries(blackbase INTERFACE blackbase_obj)
 
-set_target_properties(blackbase_obj
+set_target_properties(blackbase_obj PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     OUTPUT_NAME blackbase
 )
