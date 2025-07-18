@@ -104,15 +104,17 @@ namespace blackbase::pattern
     BLACKBASE_API std::vector<Match> Matcher::findAll(const Pattern& pattern) const
     {
         std::vector<Match> matches;
-        std::vector<uint8_t> moduleData = ReadBlock(m_moduleBase, m_moduleBase + m_moduleSize);
-    
-        for (size_t i = 0; i <= moduleData.size() - pattern.getBytes().size(); ++i)
+
+        for (size_t i = 0; i <= m_moduleSize - pattern.getBytes().size(); ++i)
         {
+            size_t remaining = std::min(pattern.getBytes().size(), m_moduleSize - i); // Read only the pattern size or the remaining bytes in the module
+            std::vector<uint8_t> moduleData = ReadBlock(m_moduleBase + i, m_moduleBase + i + remaining);
+
             bool match = true;
 
             for (size_t j = 0; j < pattern.getBytes().size(); ++j)
             {
-                if (pattern.getMask()[j] && pattern.getBytes()[j] != moduleData[i + j])
+                if (pattern.getMask()[j] && pattern.getBytes()[j] != moduleData[j])
                 {
                     match = false;
                     break;
@@ -130,16 +132,21 @@ namespace blackbase::pattern
 
     BLACKBASE_API std::optional<Match> Matcher::findFirst(const Pattern& pattern) const
     {
-        std::vector<Match> matches;
-        std::vector<uint8_t> moduleData = ReadBlock(m_moduleBase, m_moduleBase + m_moduleSize);
-    
-        for (size_t i = 0; i <= moduleData.size() - pattern.getBytes().size(); ++i)
+        for (size_t i = 0; i <= m_moduleSize - pattern.getBytes().size(); ++i)
         {
+            size_t remaining = std::min(pattern.getBytes().size(), m_moduleSize - i); // Read only the pattern size or the remaining bytes in the module
+            if (remaining != pattern.getBytes().size())
+            {
+                return std::nullopt; // Not enough bytes left to match the pattern
+            }
+            
+            std::vector<uint8_t> moduleData = ReadBlock(m_moduleBase + i, m_moduleBase + i + remaining);
+
             bool match = true;
 
             for (size_t j = 0; j < pattern.getBytes().size(); ++j)
             {
-                if (pattern.getMask()[j] && pattern.getBytes()[j] != moduleData[i + j])
+                if (pattern.getMask()[j] && pattern.getBytes()[j] != moduleData[j])
                 {
                     match = false;
                     break;
@@ -148,7 +155,7 @@ namespace blackbase::pattern
 
             if (match)
             {
-                return Match(m_moduleBase + i);
+                return Match(m_moduleBase + i); // Return the first match found
             }
         }
 
