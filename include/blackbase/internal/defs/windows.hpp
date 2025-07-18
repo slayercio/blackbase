@@ -227,6 +227,7 @@ typedef struct _MEMORY_BASIC_INFORMATION {
 #define PAGE_EXECUTE_READ      0x20
 #define PAGE_EXECUTE_READWRITE 0x40
 #define PAGE_EXECUTE_WRITECOPY 0x80
+#define PAGE_GUARD             0x100
 
 extern "C" {
     __declspec(dllimport) SIZE_T __stdcall VirtualQuery(

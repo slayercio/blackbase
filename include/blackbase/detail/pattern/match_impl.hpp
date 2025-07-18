@@ -36,7 +36,7 @@ namespace blackbase::pattern
     BLACKBASE_API Match& Match::resolveRelative(size_t opSize)
     {
         int32_t offset = *reinterpret_cast<int32_t*>(m_Address + opSize);
-        m_Address += opSize; // Move past the LEA instruction
+        m_Address += opSize + sizeof(offset); // Move past the instruction size and the offset
         m_Address += offset; // Apply the relative offset
 
         return *this;

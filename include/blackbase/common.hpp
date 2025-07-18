@@ -11,6 +11,7 @@
 #include <memory>
 #include <functional>
 #include <any>
+#include <array>
 
 #include <blackbase/internal/linkage.hpp>
 #include <blackbase/internal/constexpr.hpp>
