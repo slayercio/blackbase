@@ -1,7 +1,5 @@
 #pragma once
 
-#include <blackbase/internal/system.hpp>
-
 #ifdef NDEBUG
     #define BLACKBASE_ASSERT(condition, message, ...) ((void)0)
     #define BLACKBASE_DEBUG_BREAK() ((void)0)

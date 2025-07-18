@@ -1,8 +1,9 @@
 #pragma once
 #include <blackbase/pattern/matcher.hpp>
+#include <blackbase/pattern/match.hpp>
 #include <blackbase/library/library.hpp>
-#include <blackbase/internal/assert.hpp>
-#include <blackbase/internal/system.hpp>
+#include <blackbase/internal/log.hpp>
+#include <blackbase/internal/defs/windows.hpp>
 
 namespace blackbase::pattern
 {
@@ -37,33 +38,61 @@ namespace blackbase::pattern
         m_moduleSize = moduleSize;
     }
 
-    
-    
-}
-
-#ifdef BLACKBASE_SYSTEM_WINDOWS
-    #include <blackbase/detail/pattern/matcher_impl_safe_win.hpp>
-#else
     BLACKBASE_API std::vector<Match> Matcher::findAll(const Pattern& pattern) const
     {
         std::vector<Match> matches;
 
-        for (uint8_t* address = reinterpret_cast<uint8_t*>(m_moduleBase); address + pattern.getBytes().size() < reinterpret_cast<uint8_t*>(m_moduleBase + m_moduleSize); ++address)
-        {
-            bool match = true;
+        size_t currentAddress = m_moduleBase;
+        size_t endAddress = m_moduleBase + m_moduleSize;
+        ::MEMORY_BASIC_INFORMATION mbi;
 
-            for (size_t i = 0; i < pattern.getBytes().size(); ++i)
+        while (currentAddress + pattern.getBytes().size() < endAddress)
+        {
+            if (!VirtualQuery(reinterpret_cast<void*>(currentAddress), &mbi, sizeof(mbi)))
             {
-                if (pattern.getMask()[i] && pattern.getBytes()[i] != address[i])
-                {
-                    match = false;
-                    break;
-                }
+                BLACKBASE_TRACE("VirtualQuery failed at address: 0x{:X}", currentAddress);
+                currentAddress += 0x1000;
+                continue;
             }
 
-            if (match)
+            size_t regionEnd = reinterpret_cast<size_t>(mbi.BaseAddress) + mbi.RegionSize;
+
+            if (regionEnd > endAddress)
             {
-                matches.emplace_back(reinterpret_cast<std::uintptr_t>(address));
+                regionEnd = endAddress;
+            }
+
+            if (mbi.State == MEM_COMMIT && !(mbi.Protect & PAGE_NOACCESS) && !(mbi.Protect & PAGE_GUARD))
+            {
+                size_t bytesToCheck = regionEnd - currentAddress;
+
+                const uint8_t* address = reinterpret_cast<uint8_t*>(currentAddress);
+
+                for (size_t i = 0; i <= bytesToCheck - pattern.getBytes().size(); i++)
+                {
+                    bool match = true;
+
+                    for (size_t j = 0; j < pattern.getBytes().size(); j++)
+                    {
+                        if (pattern.getMask()[j] && pattern.getBytes()[j] != address[i + j])
+                        {
+                            match = false;
+                            break;
+                        }
+                    }
+
+                    if (match)
+                    {
+                        matches.emplace_back(reinterpret_cast<std::uintptr_t>(address + i));
+                    }
+                }
+
+                currentAddress = reinterpret_cast<size_t>(mbi.BaseAddress) + mbi.RegionSize;
+                if (currentAddress <= reinterpret_cast<size_t>(mbi.BaseAddress))
+                {
+                    BLACKBASE_TRACE("Invalid memory region detected at address: 0x{:X}", currentAddress);
+                    break; // Prevent infinite loop in case of invalid memory region
+                }
             }
         }
 
@@ -72,25 +101,60 @@ namespace blackbase::pattern
 
     BLACKBASE_API std::optional<Match> Matcher::findFirst(const Pattern& pattern) const
     {
-        for (uint8_t* address = reinterpret_cast<uint8_t*>(m_moduleBase); address + pattern.getBytes().size() < reinterpret_cast<uint8_t*>(m_moduleBase + m_moduleSize); ++address)
-        {
-            bool match = true;
+        size_t currentAddress = m_moduleBase;
+        size_t endAddress = m_moduleBase + m_moduleSize;
+        MEMORY_BASIC_INFORMATION mbi;
 
-            for (size_t i = 0; i < pattern.getBytes().size(); ++i)
+        while (currentAddress + pattern.getBytes().size() < endAddress)
+        {
+            if (!VirtualQuery(reinterpret_cast<void*>(currentAddress), &mbi, sizeof(mbi)))
             {
-                if (pattern.getMask()[i] && pattern.getBytes()[i] != address[i])
-                {
-                    match = false;
-                    break;
-                }
+                BLACKBASE_TRACE("VirtualQuery failed at address: 0x{:X}", currentAddress);
+                currentAddress += 0x1000;
+                continue;
             }
 
-            if (match)
+            size_t regionEnd = reinterpret_cast<size_t>(mbi.BaseAddress) + mbi.RegionSize;
+
+            if (regionEnd > endAddress)
             {
-                return Match(reinterpret_cast<std::uintptr_t>(address));
+                regionEnd = endAddress;
+            }
+
+            if (mbi.State == MEM_COMMIT && !(mbi.Protect & PAGE_NOACCESS) && !(mbi.Protect & PAGE_GUARD))
+            {
+                size_t bytesToCheck = regionEnd - currentAddress;
+
+                const uint8_t* address = reinterpret_cast<uint8_t*>(currentAddress);
+
+                for (size_t i = 0; i <= bytesToCheck - pattern.getBytes().size(); i++)
+                {
+                    bool match = true;
+
+                    for (size_t j = 0; j < pattern.getBytes().size(); j++)
+                    {
+                        if (pattern.getMask()[j] && pattern.getBytes()[j] != address[i + j])
+                        {
+                            match = false;
+                            break;
+                        }
+                    }
+
+                    if (match)
+                    {
+                        return Match(reinterpret_cast<std::uintptr_t>(address + i));
+                    }
+                }
+
+                currentAddress = reinterpret_cast<size_t>(mbi.BaseAddress) + mbi.RegionSize;
+                if (currentAddress <= reinterpret_cast<size_t>(mbi.BaseAddress))
+                {
+                    BLACKBASE_TRACE("Invalid memory region detected at address: 0x{:X}", currentAddress);
+                    break; // Prevent infinite loop in case of invalid memory region
+                }
             }
         }
 
         return std::nullopt;
     }
-#endif
+}
