@@ -8,7 +8,7 @@ if (BLACKBASE_BUILD_TESTS)
         target_include_directories(${TEST_NAME} 
             PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         )
-        target_link_libraries(${TEST_NAME} blackbase)
+        target_link_libraries(${TEST_NAME} blackbase blackbase_asm)
         target_compile_definitions(${TEST_NAME}
             PUBLIC $<$<CONFIG:Debug>:DEBUG>
             PUBLIC $<$<CONFIG:Release>:NDEBUG>

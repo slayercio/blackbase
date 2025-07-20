@@ -1,5 +1,6 @@
 #pragma once
 #include <blackbase/common.hpp>
+#include <ranges>
 
 namespace blackbase::pattern
 {
@@ -60,7 +61,44 @@ namespace blackbase::pattern
         {
             return reinterpret_cast<T>(m_Address);
         }
+    
+    public: // filters
+        BLACKBASE_API static bool IsExecutable(const Match& match);
+        BLACKBASE_API static bool IsExecutable(Match& match);
+
+        BLACKBASE_API static bool IsWritable(const Match& match);
+        BLACKBASE_API static bool IsWritable(Match& match);
+
+        BLACKBASE_API static bool IsReadable(const Match& match);
+        BLACKBASE_API static bool IsReadable(Match& match);
+
+    public:
+        template<typename Container>
+        BLACKBASE_API static auto filterExecutable(Container& matches)
+        {
+            auto view = matches | std::views::filter([](Match& match) { return IsExecutable(match); });
+
+            return Container(view.begin(), view.end());
+        }
+
+        template<typename Container>
+        BLACKBASE_API static auto filterWritable(Container& matches)
+        {
+            auto view = matches | std::views::filter([](Match& match) { return IsWritable(match); });
+
+            return Container(view.begin(), view.end());
+        }
+
+        template<typename Container>
+        BLACKBASE_API static auto filterReadable(Container& matches)
+        {
+            auto view = matches | std::views::filter([](Match& match) { return IsReadable(match); });
+
+            return Container(view.begin(), view.end());
+        }
     };
+
+    
 }
 
 #ifdef BLACKBASE_HEADER_ONLY

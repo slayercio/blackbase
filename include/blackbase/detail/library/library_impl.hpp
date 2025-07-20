@@ -5,6 +5,13 @@
 #include <blackbase/internal/log.hpp>
 #include <functional>
 
+namespace __win
+{
+    PPEB GetPeb()
+    {
+        return reinterpret_cast<PPEB>(__readgsqword(0x60));
+    }
+}
 
 namespace blackbase::library
 {
@@ -70,17 +77,11 @@ namespace blackbase::library
         return m_Handle != 0;
     }
 
-    namespace __windows
-    {
-        PPEB GetPeb()
-        {
-            return reinterpret_cast<PPEB>(__readgsqword(0x60));
-        }
-    }
+    
 
-    BLACKBASE_API void ForeachLibrary(std::function<bool(PLDR_DATA_TABLE_ENTRY)> callback)
+    BLACKBASE_API void ForeachLibrary(std::function<bool(__win::PLDR_DATA_TABLE_ENTRY)> callback)
     {
-        auto peb = __windows::GetPeb();
+        auto peb = __win::GetPeb();
         if (!peb)
         {
             return;
@@ -94,8 +95,8 @@ namespace blackbase::library
 
         for (auto entry = ldr->InMemoryOrderModuleList.Flink; entry != &ldr->InMemoryOrderModuleList; entry = entry->Flink)
         {
-            auto mod = reinterpret_cast<PLDR_DATA_TABLE_ENTRY>(
-                ((LDR_DATA_TABLE_ENTRY*)((char*)(entry) - (__int64)(&((LDR_DATA_TABLE_ENTRY*)0)->InMemoryOrderLinks)))
+            auto mod = reinterpret_cast<__win::PLDR_DATA_TABLE_ENTRY>(
+                ((__win::LDR_DATA_TABLE_ENTRY*)((char*)(entry) - (__int64)(&((__win::LDR_DATA_TABLE_ENTRY*)0)->InMemoryOrderLinks)))
             );
 
             if (callback(mod))
@@ -111,7 +112,7 @@ namespace blackbase::library
 
         std::optional<Library> result;
 
-        ForeachLibrary([&result, &name](PLDR_DATA_TABLE_ENTRY mod) mutable {
+        ForeachLibrary([&result, &name](__win::PLDR_DATA_TABLE_ENTRY mod) mutable {
             auto wideName = util::ToWide(name);
             BLACKBASE_DEBUG("Checking module: {}, result = {}", util::ToNarrow(mod->BaseDllName.Buffer, mod->BaseDllName.Length / sizeof(wchar_t)), _wcsicmp(mod->BaseDllName.Buffer, wideName.c_str()));
 
@@ -136,7 +137,7 @@ namespace blackbase::library
     {
         std::optional<Library> result;
 
-        ForeachLibrary([&](PLDR_DATA_TABLE_ENTRY mod) {
+        ForeachLibrary([&](__win::PLDR_DATA_TABLE_ENTRY mod) {
             auto startAddress = reinterpret_cast<std::uintptr_t>(mod->DllBase);
             auto endAddress = startAddress + mod->SizeOfImage;
             bool isValid = address >= startAddress && address < endAddress;
@@ -170,31 +171,31 @@ namespace blackbase::library
         }
 
         std::optional<blackbase::library::Export> result;
-        auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(m_Handle);
+        auto dosHeader = reinterpret_cast<__win::PIMAGE_DOS_HEADER>(m_Handle);
         if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
         {
             return std::nullopt;
         }
 
-        auto ntHeaders = reinterpret_cast<PIMAGE_NT_HEADERS64>(reinterpret_cast<std::uintptr_t>(dosHeader) + dosHeader->e_lfanew);
+        auto ntHeaders = reinterpret_cast<__win::PIMAGE_NT_HEADERS64>(reinterpret_cast<std::uintptr_t>(dosHeader) + dosHeader->e_lfanew);
         if (ntHeaders->Signature != IMAGE_NT_SIGNATURE)
         {
             return std::nullopt;
         }
 
-        auto exportDir = &ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+        auto exportDir = &ntHeaders->OptionalHeader.DataDirectory[__win::ENTRY_EXPORT];
         if (exportDir->VirtualAddress == 0 || exportDir->Size == 0)
         {
             return std::nullopt;
         }
 
-        auto exportTable = reinterpret_cast<PIMAGE_EXPORT_DIRECTORY>(
+        auto exportTable = reinterpret_cast<__win::PIMAGE_EXPORT_DIRECTORY>(
             reinterpret_cast<std::uintptr_t>(dosHeader) + exportDir->VirtualAddress
         );
 
-        auto names = reinterpret_cast<PDWORD>(reinterpret_cast<std::uintptr_t>(dosHeader) + exportTable->AddressOfNames);
-        auto ordinals = reinterpret_cast<PWORD>(reinterpret_cast<std::uintptr_t>(dosHeader) + exportTable->AddressOfNameOrdinals);
-        auto functions = reinterpret_cast<PDWORD>(reinterpret_cast<std::uintptr_t>(dosHeader) + exportTable->AddressOfFunctions);
+        auto names = reinterpret_cast<__win::PDWORD>(reinterpret_cast<std::uintptr_t>(dosHeader) + exportTable->AddressOfNames);
+        auto ordinals = reinterpret_cast<__win::PWORD>(reinterpret_cast<std::uintptr_t>(dosHeader) + exportTable->AddressOfNameOrdinals);
+        auto functions = reinterpret_cast<__win::PDWORD>(reinterpret_cast<std::uintptr_t>(dosHeader) + exportTable->AddressOfFunctions);
 
         for (uint32_t i = 0; i < exportTable->NumberOfNames; ++i)
         {

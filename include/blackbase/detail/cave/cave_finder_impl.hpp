@@ -38,9 +38,9 @@ namespace blackbase
 
     blackbase::SectionFlags GetSectionFlags(std::uintptr_t address)
     {
-        MEMORY_BASIC_INFORMATION mbi{};
+        __win::MEMORY_BASIC_INFORMATION mbi{};
 
-        if (VirtualQuery(reinterpret_cast<PVOID>(address), &mbi, sizeof(mbi)) == 0)
+        if (VirtualQueryWrapper(reinterpret_cast<__win::PVOID>(address), &mbi, sizeof(mbi)) == 0)
         {
             return blackbase::SectionFlags::None; // Error retrieving memory info
         }

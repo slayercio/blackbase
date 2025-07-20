@@ -4,6 +4,7 @@
 #include <blackbase/library/library.hpp>
 #include <blackbase/internal/log.hpp>
 #include <blackbase/internal/defs/windows.hpp>
+#include <blackbase/internal/assert.hpp>
 
 namespace blackbase::pattern
 {
@@ -44,11 +45,11 @@ namespace blackbase::pattern
 
         size_t currentAddress = m_moduleBase;
         size_t endAddress = m_moduleBase + m_moduleSize;
-        ::MEMORY_BASIC_INFORMATION mbi;
+        __win::MEMORY_BASIC_INFORMATION mbi;
 
         while (currentAddress + pattern.getBytes().size() < endAddress)
         {
-            if (!VirtualQuery(reinterpret_cast<void*>(currentAddress), &mbi, sizeof(mbi)))
+            if (!VirtualQueryWrapper(reinterpret_cast<void*>(currentAddress), &mbi, sizeof(mbi)))
             {
                 BLACKBASE_TRACE("VirtualQuery failed at address: 0x{:X}", currentAddress);
                 currentAddress += 0x1000;
@@ -103,11 +104,11 @@ namespace blackbase::pattern
     {
         size_t currentAddress = m_moduleBase;
         size_t endAddress = m_moduleBase + m_moduleSize;
-        MEMORY_BASIC_INFORMATION mbi;
+        __win::MEMORY_BASIC_INFORMATION mbi;
 
         while (currentAddress + pattern.getBytes().size() < endAddress)
         {
-            if (!VirtualQuery(reinterpret_cast<void*>(currentAddress), &mbi, sizeof(mbi)))
+            if (!VirtualQueryWrapper(reinterpret_cast<void*>(currentAddress), &mbi, sizeof(mbi)))
             {
                 BLACKBASE_TRACE("VirtualQuery failed at address: 0x{:X}", currentAddress);
                 currentAddress += 0x1000;
@@ -156,5 +157,35 @@ namespace blackbase::pattern
         }
 
         return std::nullopt;
+    }
+
+    BLACKBASE_API std::optional<Match> Matcher::verifyFirst(std::uintptr_t address, const Pattern& pattern) const
+    {
+        if (address < m_moduleBase || address >= m_moduleBase + m_moduleSize)
+        {
+            BLACKBASE_TRACE("Address 0x{:X} is out of module bounds", address);
+            return std::nullopt;
+        }
+
+        auto matcher = Matcher(address, pattern.getBytes().size());
+        auto match = matcher.findFirst(pattern);
+
+        if (match.has_value() && match->getAddress() == address)
+        {
+            return match;
+        }
+
+        return std::nullopt;
+    }
+
+    BLACKBASE_API std::optional<Match> Matcher::verifyOrFind(std::uintptr_t address, const Pattern& pattern) const
+    {
+        auto match = verifyFirst(address, pattern);
+        if (match.has_value())
+        {
+            return match;
+        }
+
+        return findFirst(pattern);
     }
 }

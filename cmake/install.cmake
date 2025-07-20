@@ -8,6 +8,10 @@ if (TARGET blackbase_obj)
     install(TARGETS blackbase_obj EXPORT BlackBaseTargets)
 endif()
 
+if(TARGET blackbase_asm)
+    install(TARGETS blackbase_asm EXPORT BlackBaseTargets)
+endif()
+
 install(EXPORT BlackBaseTargets
     FILE BlackBaseTargets.cmake
     NAMESPACE BlackBase::

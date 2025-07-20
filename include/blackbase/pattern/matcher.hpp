@@ -2,6 +2,7 @@
 #include <blackbase/common.hpp>
 #include <blackbase/pattern/pattern.hpp>
 #include <blackbase/pattern/match.hpp>
+#include <expected>
 
 namespace blackbase::pattern
 {
@@ -23,6 +24,11 @@ namespace blackbase::pattern
     public:
         BLACKBASE_API std::vector<Match> findAll(const Pattern& pattern) const;
         BLACKBASE_API std::optional<Match> findFirst(const Pattern& pattern) const;
+
+    public:
+        BLACKBASE_API std::optional<Match> verifyFirst(std::uintptr_t address, const Pattern& pattern) const;
+        BLACKBASE_API std::optional<Match> verifyOrFind(std::uintptr_t address, const Pattern& pattern) const;
+        
     };
 }
 
