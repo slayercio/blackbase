@@ -10,7 +10,7 @@ namespace blackbase::hooking
 
     std::shared_ptr<VTableHook> VTableHook::Create(void* object, std::size_t index, void* newFunction)
     {
-        return std::make_shared<VTableHook>(object, index, newFunction);
+        return std::shared_ptr<VTableHook>(new VTableHook(object, index, newFunction));
     }
 
     VTableHook::~VTableHook() = default;
@@ -33,21 +33,29 @@ namespace blackbase::hooking
 
     bool VTableHook::IsEnabled() const
     {
-        
+        return m_OriginalFunction != nullptr && IsEnabled();
     }
 
     void VTableHook::Enable()
     {
         void **vtable = *reinterpret_cast<void***>(m_Object);
+        
+        __win::DWORD oldProtect;
+        VirtualProtectWrapper(vtable + (m_HookedIndex * sizeof(void*)), sizeof(void*), PAGE_EXECUTE_READWRITE, &oldProtect);
         m_OriginalFunction = vtable[m_HookedIndex];
         vtable[m_HookedIndex] = m_HookedFunction; // Hook the function
+        VirtualProtectWrapper(vtable + (m_HookedIndex * sizeof(void*)), sizeof(void*), oldProtect, &oldProtect);
     }
 
     void VTableHook::Disable()
     {
         void **vtable = *reinterpret_cast<void***>(m_Object);
+        
+        __win::DWORD oldProtect;
+        VirtualProtectWrapper(vtable + (m_HookedIndex * sizeof(void*)), sizeof(void*), PAGE_EXECUTE_READWRITE, &oldProtect);
         vtable[m_HookedIndex] = m_OriginalFunction; // Restore the original function
         m_OriginalFunction = nullptr; // Clear the original function pointer
+        VirtualProtectWrapper(vtable + (m_HookedIndex * sizeof(void*)), sizeof(void*), oldProtect, &oldProtect);
     }
 
     bool VTableHook::IsValid() const

@@ -223,34 +223,53 @@ namespace __win
         DWORD  Type;
     } MEMORY_BASIC_INFORMATION, *PMEMORY_BASIC_INFORMATION;
 
-    #define PAGE_NOACCESS          0x01
-    #define PAGE_READONLY          0x02
-    #define PAGE_READWRITE         0x04
-    #define PAGE_WRITECOPY         0x08
-    #define PAGE_EXECUTE           0x10
-    #define PAGE_EXECUTE_READ      0x20
-    #define PAGE_EXECUTE_READWRITE 0x40
-    #define PAGE_EXECUTE_WRITECOPY 0x80
-    #define PAGE_GUARD             0x100
-    #define MEM_COMMIT              0x00001000  
 }
 
 #ifndef _WINDOWS_
+
+#define PAGE_NOACCESS          0x01
+#define PAGE_READONLY          0x02
+#define PAGE_READWRITE         0x04
+#define PAGE_WRITECOPY         0x08
+#define PAGE_EXECUTE           0x10
+#define PAGE_EXECUTE_READ      0x20
+#define PAGE_EXECUTE_READWRITE 0x40
+#define PAGE_EXECUTE_WRITECOPY 0x80
+#define PAGE_GUARD             0x100
+#define MEM_COMMIT              0x00001000  
+
 extern "C" {
     __declspec(dllimport) __win::SIZE_T __stdcall VirtualQuery(
         __win::PVOID lpAddress,
         __win::PMEMORY_BASIC_INFORMATION lpBuffer,
         __win::SIZE_T dwLength
     );
+
+    __declspec(dllimport) __win::BOOL __stdcall VirtualProtect(
+        __win::PVOID lpAddress,
+        __win::SIZE_T dwSize,
+        __win::DWORD flNewProtect,
+        __win::PDWORD lpflOldProtect
+    );
 }
 size_t VirtualQueryWrapper(__win::PVOID lpAddress, __win::PMEMORY_BASIC_INFORMATION lpBuffer, __win::SIZE_T dwLength)
 {
     return VirtualQuery(lpAddress, lpBuffer, dwLength);
 }
+
+__win::BOOL VirtualProtectWrapper(__win::PVOID lpAddress, __win::SIZE_T dwSize, __win::DWORD flNewProtect, __win::PDWORD lpflOldProtect)
+{
+    return VirtualProtect(lpAddress, dwSize, flNewProtect, lpflOldProtect);
+}
 #else
 size_t VirtualQueryWrapper(__win::PVOID lpAddress, __win::PMEMORY_BASIC_INFORMATION lpBuffer, __win::SIZE_T dwLength)
 {
     return VirtualQuery(reinterpret_cast<LPCVOID>(lpAddress), reinterpret_cast<PMEMORY_BASIC_INFORMATION>(lpBuffer), (SIZE_T) dwLength);
+}
+
+__win::BOOL VirtualProtectWrapper(__win::PVOID lpAddress, __win::SIZE_T dwSize, __win::DWORD flNewProtect, __win::PDWORD lpflOldProtect)
+{
+    return VirtualProtect(reinterpret_cast<LPVOID>(lpAddress), (SIZE_T) dwSize, flNewProtect, lpflOldProtect);
 }
 #endif
 

@@ -87,13 +87,13 @@ namespace blackbase::hooking
         m_Hooks.clear();
     }
 
-    BLACKBASE_API HookManager::HookManager(HookManager&& other) noexcept
+    BLACKBASE_API HookManager::HookManager(HookManager&& other)
         : m_Hooks(std::move(other.m_Hooks))
     {
         other.m_Hooks.clear();
     }
 
-    BLACKBASE_API HookManager& HookManager::operator=(HookManager&& other) noexcept
+    BLACKBASE_API HookManager& HookManager::operator=(HookManager&& other)
     {
         if (this != &other)
         {
