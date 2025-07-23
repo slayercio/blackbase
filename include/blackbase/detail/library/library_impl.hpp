@@ -7,7 +7,7 @@
 
 namespace __win
 {
-    PPEB GetPeb()
+    inline PPEB GetPeb()
     {
         return reinterpret_cast<PPEB>(__readgsqword(0x60));
     }

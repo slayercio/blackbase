@@ -9,7 +9,9 @@
     #define BLACKBASE_DEBUG_BREAK() ((void)0)
 #endif
 
-extern "C" BLACKBASE_IMPORT int __stdcall IsDebuggerPresent(void);
+#ifndef _WINDOWS_
+    extern "C" BLACKBASE_IMPORT int __stdcall IsDebuggerPresent(void);
+#endif
 
 #define TRAP_UNDER_DEBUGGER() \
     do { \

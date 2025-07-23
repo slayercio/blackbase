@@ -3,40 +3,40 @@
 
 namespace blackbase::hooking
 {
-    VTableHook::VTableHook(void* object, std::size_t index, void* newFunction)
+    BLACKBASE_API VTableHook::VTableHook(void* object, std::size_t index, void* newFunction)
         : Hook(), m_OriginalFunction(nullptr), m_HookedFunction(newFunction), m_HookedIndex(index), m_Object(object)
     {
     }
 
-    std::shared_ptr<VTableHook> VTableHook::Create(void* object, std::size_t index, void* newFunction)
+    BLACKBASE_API std::shared_ptr<VTableHook> VTableHook::Create(void* object, std::size_t index, void* newFunction)
     {
         return std::shared_ptr<VTableHook>(new VTableHook(object, index, newFunction));
     }
 
-    VTableHook::~VTableHook() = default;
+    BLACKBASE_API VTableHook::~VTableHook() = default;
 
-    void* VTableHook::GetOriginalFunction() const
+    BLACKBASE_API void* VTableHook::GetOriginalFunction() const
     {
         return m_OriginalFunction;
     }
 
-    void* VTableHook::GetHookedFunction() const
+    BLACKBASE_API void* VTableHook::GetHookedFunction() const
     {
         return m_HookedFunction;
     }
 
-    const std::string_view& VTableHook::GetType() const
+    BLACKBASE_API const std::string_view& VTableHook::GetType() const
     {
         static const std::string_view type = "VTableHook";
         return type;
     }
 
-    bool VTableHook::IsEnabled() const
+    BLACKBASE_API bool VTableHook::IsEnabled() const
     {
-        return m_OriginalFunction != nullptr && IsEnabled();
+        return m_OriginalFunction != nullptr && IsValid();
     }
 
-    void VTableHook::Enable()
+    BLACKBASE_API void VTableHook::Enable()
     {
         void **vtable = *reinterpret_cast<void***>(m_Object);
         
@@ -47,7 +47,7 @@ namespace blackbase::hooking
         VirtualProtectWrapper(vtable + (m_HookedIndex * sizeof(void*)), sizeof(void*), oldProtect, &oldProtect);
     }
 
-    void VTableHook::Disable()
+    BLACKBASE_API void VTableHook::Disable()
     {
         void **vtable = *reinterpret_cast<void***>(m_Object);
         
@@ -58,7 +58,7 @@ namespace blackbase::hooking
         VirtualProtectWrapper(vtable + (m_HookedIndex * sizeof(void*)), sizeof(void*), oldProtect, &oldProtect);
     }
 
-    bool VTableHook::IsValid() const
+    BLACKBASE_API bool VTableHook::IsValid() const
     {
         if (m_Object == nullptr || m_HookedIndex < 0)
         {

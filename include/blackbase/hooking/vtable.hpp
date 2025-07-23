@@ -13,7 +13,7 @@ namespace blackbase::hooking
         std::size_t m_HookedIndex;
         
     protected:
-        VTableHook(void* object, std::size_t index, void* newFunction);
+        BLACKBASE_API VTableHook(void* object, std::size_t index, void* newFunction);
 
     public:
         BLACKBASE_API static std::shared_ptr<VTableHook> Create(void* object, std::size_t index, void* newFunction);

@@ -1,6 +1,9 @@
 #pragma once
 #include <blackbase/util/string.hpp>
 
+#pragma warning(push)
+#pragma warning(disable : 4244) // conversion from 'wchar_t' to 'char', possible loss of data
+
 namespace blackbase::util
 {
     BLACKBASE_API std::wstring ToWide(const std::string_view& str)
@@ -43,3 +46,5 @@ namespace blackbase::util
         return std::string(str.begin(), str.end());
     }
 }
+
+#pragma warning(pop)

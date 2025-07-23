@@ -5,7 +5,7 @@
 
 namespace blackbase
 {
-    std::vector<std::uintptr_t> FindCaves(std::uintptr_t start, std::uintptr_t end, size_t requiredSize, bool breakOnFirst = true)
+    BLACKBASE_API std::vector<std::uintptr_t> FindCaves(std::uintptr_t start, std::uintptr_t end, size_t requiredSize, bool breakOnFirst = true)
     {
         std::vector<std::uintptr_t> caves;
 
@@ -36,7 +36,7 @@ namespace blackbase
         return caves; // Return all found caves
     }
 
-    blackbase::SectionFlags GetSectionFlags(std::uintptr_t address)
+    BLACKBASE_API blackbase::SectionFlags GetSectionFlags(std::uintptr_t address)
     {
         __win::MEMORY_BASIC_INFORMATION mbi{};
 
@@ -73,7 +73,7 @@ namespace blackbase
         CaveFinderWin() = default;
         ~CaveFinderWin() override = default;
 
-        std::optional<Cave> findCave(const std::string& moduleName, size_t requiredSize) const override
+        BLACKBASE_API std::optional<Cave> findCave(const std::string& moduleName, size_t requiredSize) const override
         {
             auto library = blackbase::library::Library::GetLibraryHandle(moduleName);
             if (!library)
@@ -94,7 +94,7 @@ namespace blackbase
             return Cave(caves.front(), flags);
         }
 
-        std::vector<Cave> findCaves(const std::string& moduleName, size_t requiredSize) const override
+        BLACKBASE_API std::vector<Cave> findCaves(const std::string& moduleName, size_t requiredSize) const override
         {
             auto library = blackbase::library::Library::GetLibraryHandle(moduleName);
             if (!library)
