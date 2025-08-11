@@ -17,6 +17,8 @@ namespace blackbase
         static BLACKBASE_FORCEINLINE std::optional<Library> FindByAddress(std::uintptr_t address) BLACKBASE_NOEXCEPT;
         static BLACKBASE_FORCEINLINE std::vector<Library> FindAll() BLACKBASE_NOEXCEPT;
 
+        static BLACKBASE_FORCEINLINE std::optional<Library> GetCurrent() BLACKBASE_NOEXCEPT;
+
     public:
         BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Library() BLACKBASE_NOEXCEPT = default;
         BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Library(std::uintptr_t baseAddress, std::uintptr_t endAddress, const std::string& name) BLACKBASE_NOEXCEPT;
@@ -223,6 +225,30 @@ namespace blackbase
         }
 
         return std::nullopt;
+    }
+
+    static BLACKBASE_FORCEINLINE std::optional<Library> GetCurrent() BLACKBASE_NOEXCEPT
+    {
+        std::optional<Library> currentLibrary = std::nullopt;
+
+        // current module is the first module in the list
+        windows::ForEachLibrary([&](PLDR_DATA_TABLE_ENTRY entry) -> bool
+        {
+            auto myEntry = reinterpret_cast<blackbase::windows::PLDR_DATA_TABLE_ENTRY>(entry);
+
+            if (myEntry->BaseDllName.Length > 0 && myEntry->BaseDllName.Buffer)
+            {
+                currentLibrary = Library(
+                    reinterpret_cast<std::uintptr_t>(myEntry->DllBase),
+                    reinterpret_cast<std::uintptr_t>(myEntry->DllBase) + myEntry->SizeOfImage,
+                    ToString(std::wstring_view(myEntry->BaseDllName.Buffer, myEntry->BaseDllName.Length / sizeof(wchar_t)))
+                );
+
+                return true; // Stop iteration
+            }
+
+            return false; // Continue iteration
+        });
     }
 }
 #pragma endregion
