@@ -265,8 +265,8 @@ namespace blackbase
     #endif
     }
 
-    extern std::shared_ptr<blackbase::Logger> g_Logger;
-    std::shared_ptr<blackbase::Logger> Logger::GetInstance()
+    extern std::shared_ptr<Logger> g_Logger;
+    BLACKBASE_FORCEINLINE std::shared_ptr<Logger> Logger::GetInstance()
     {
         return g_Logger;
     }

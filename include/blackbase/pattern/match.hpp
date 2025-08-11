@@ -37,7 +37,7 @@ namespace blackbase
         }
 
         template <typename T, typename std::enable_if_t<!std::is_pointer_v<T>, int> = 0>
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR T As() const BLACKBASE_NOEXCEPT
+        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR T* As() const BLACKBASE_NOEXCEPT
         {
             return reinterpret_cast<T*>(m_CurrentAddress);
         }

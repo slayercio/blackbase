@@ -227,7 +227,7 @@ namespace blackbase
         return std::nullopt;
     }
 
-    static BLACKBASE_FORCEINLINE std::optional<Library> GetCurrent() BLACKBASE_NOEXCEPT
+    BLACKBASE_FORCEINLINE std::optional<Library> Library::GetCurrent() BLACKBASE_NOEXCEPT
     {
         std::optional<Library> currentLibrary = std::nullopt;
 
@@ -249,6 +249,8 @@ namespace blackbase
 
             return false; // Continue iteration
         });
+
+        return currentLibrary;
     }
 }
 #pragma endregion

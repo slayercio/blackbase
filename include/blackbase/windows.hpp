@@ -1,4 +1,5 @@
 #pragma once
+#include <blackbase/common.hpp>
 #include <Windows.h>
 #include <winternl.h>
 
@@ -34,7 +35,7 @@ namespace blackbase::windows
         LIST_ENTRY StaticLinks;
     } LDR_DATA_TABLE_ENTRY, *PLDR_DATA_TABLE_ENTRY;
 
-    std::size_t GetPageSize()
+    BLACKBASE_FORCEINLINE std::size_t GetPageSize()
     {
         SYSTEM_INFO sysInfo;
         GetSystemInfo(&sysInfo);

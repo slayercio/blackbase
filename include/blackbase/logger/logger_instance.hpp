@@ -6,7 +6,7 @@ std::shared_ptr<blackbase::Logger> blackbase::Logger::Create()
 {
     if (!g_Logger)
     {
-        g_Logger = std::make_shared<blackbase::Logger>();
+        g_Logger = std::make_shared<Logger>();
     }
     
     return g_Logger;
