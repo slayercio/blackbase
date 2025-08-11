@@ -1,0 +1,1 @@
+# A header-only cheat base library
