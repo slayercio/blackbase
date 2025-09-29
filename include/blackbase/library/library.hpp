@@ -208,7 +208,7 @@ namespace blackbase
 
         auto names = reinterpret_cast<PDWORD>(m_BaseAddress + exportTable->AddressOfNames);
         auto functions = reinterpret_cast<PDWORD>(m_BaseAddress + exportTable->AddressOfFunctions);
-        auto ordinals = reinterpret_cast<PDWORD>(m_BaseAddress + exportTable->AddressOfNameOrdinals);
+        auto ordinals = reinterpret_cast<PWORD>(m_BaseAddress + exportTable->AddressOfNameOrdinals);
 
         for (size_t i = 0; i < exportTable->NumberOfNames; ++i)
         {

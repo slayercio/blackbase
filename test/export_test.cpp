@@ -34,5 +34,14 @@ int main()
     TestExport(xorstr_("user32.dll"), xorstr_("MessageBoxA"));
     TestExport(xorstr_("nonexistent.dll"), xorstr_("SomeFunction"));
     
+    auto testLib = LoadLibraryA("export_lib.exe");
+    if (!testLib)
+    {
+        std::cerr << xorstr_("Failed to load export_lib.exe") << std::endl;
+        return 1;
+    }
+
+    TestExport(xorstr_("export_lib.exe"), xorstr_("?hello@mylib@@YAXXZ"));
+
     return 0;
 }
