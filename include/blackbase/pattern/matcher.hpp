@@ -13,26 +13,25 @@ namespace blackbase
         std::uintptr_t m_ModuleEnd;
 
     public:
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Matcher() BLACKBASE_NOEXCEPT = default;
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Matcher(std::uintptr_t moduleBase, std::uintptr_t moduleEnd) BLACKBASE_NOEXCEPT;
+        inline Matcher() noexcept = default;
+        inline Matcher(std::uintptr_t moduleBase, std::uintptr_t moduleEnd) noexcept
+        {
+            m_ModuleBase = moduleBase;
+            m_ModuleEnd  = moduleEnd;
+        }
 
-        BLACKBASE_FORCEINLINE Matcher(const std::string_view& moduleName) BLACKBASE_NOEXCEPT;
+        inline Matcher(const std::string_view& moduleName) noexcept;
 
     public:
-        BLACKBASE_FORCEINLINE std::vector<Match>   FindAll(const Pattern& pattern) const BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE std::optional<Match> FindFirst(const Pattern& pattern) const BLACKBASE_NOEXCEPT;
+        inline std::vector<Match>   FindAll(const Pattern& pattern) const noexcept;
+        inline std::optional<Match> FindFirst(const Pattern& pattern) const noexcept;
     };
 }
 
 #pragma region Implementation
 namespace blackbase
 {
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Matcher::Matcher(std::uintptr_t moduleBase, std::uintptr_t moduleEnd) BLACKBASE_NOEXCEPT
-        : m_ModuleBase(moduleBase), m_ModuleEnd(moduleEnd)
-    {
-    }
-
-    BLACKBASE_FORCEINLINE Matcher::Matcher(const std::string_view& moduleName) BLACKBASE_NOEXCEPT
+    inline Matcher::Matcher(const std::string_view& moduleName) noexcept
         : m_ModuleBase(0), m_ModuleEnd(0)
     {
         const auto library = Library::FindByName(moduleName);
@@ -47,7 +46,7 @@ namespace blackbase
         }
     }
 
-    BLACKBASE_FORCEINLINE std::vector<Match> Matcher::FindAll(const Pattern& pattern) const BLACKBASE_NOEXCEPT
+    inline std::vector<Match> Matcher::FindAll(const Pattern& pattern) const noexcept
     {
         if (m_ModuleBase == 0 || m_ModuleEnd == 0)
         {
@@ -116,7 +115,7 @@ namespace blackbase
         return matches;
     }
 
-    BLACKBASE_FORCEINLINE std::optional<Match> Matcher::FindFirst(const Pattern& pattern) const BLACKBASE_NOEXCEPT
+    inline std::optional<Match> Matcher::FindFirst(const Pattern& pattern) const noexcept
     {
         if (m_ModuleBase == 0 || m_ModuleEnd == 0)
         {

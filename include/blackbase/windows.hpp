@@ -35,7 +35,7 @@ namespace blackbase::windows
         LIST_ENTRY StaticLinks;
     } LDR_DATA_TABLE_ENTRY, *PLDR_DATA_TABLE_ENTRY;
 
-    BLACKBASE_FORCEINLINE std::size_t GetPageSize()
+    inline std::size_t GetPageSize()
     {
         SYSTEM_INFO sysInfo;
         GetSystemInfo(&sysInfo);

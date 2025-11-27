@@ -3,6 +3,18 @@
 
 namespace blackbase
 {
+    template<typename Ret, typename... Args>
+    struct FunctionCaller
+    {
+        using FuncType = Ret(*)(Args...);
+
+        static Ret Call(std::uintptr_t address, Args... args)
+        {
+            FuncType func = reinterpret_cast<FuncType>(address);
+            return func(std::forward<Args>(args)...);
+        }
+    };
+
     class Export
     {
     private:
@@ -10,39 +22,28 @@ namespace blackbase
         std::uintptr_t  m_Address;
 
     public:
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Export(const std::string& name, std::uintptr_t address);
+        inline Export(const std::string& name, std::uintptr_t address)
+        {
+            m_Name    = name;
+            m_Address = address;
+        }
 
     public:
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR const std::string& GetName() const;
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR std::uintptr_t GetAddress() const;
+        inline const std::string& GetName() const
+        {
+            return m_Name;
+        }
+
+        inline std::uintptr_t GetAddress() const
+        {
+            return m_Address;
+        }
 
     public:
         template<typename Ret, typename... Args>
-        BLACKBASE_FORCEINLINE Ret Call(Args... args) const
+        inline Ret Call(Args... args) const
         {
-            using FuncType = Ret(*)(Args...);
-            FuncType func = reinterpret_cast<FuncType>(m_Address);
-            return func(std::forward<Args>(args)...);
+            return FunctionCaller<Ret, Args...>::Call(m_Address, std::forward<Args>(args)...);
         }
     };
 }
-
-#pragma region Export Implementation
-namespace blackbase
-{
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Export::Export(const std::string& name, std::uintptr_t address)
-        : m_Name(name), m_Address(address)
-    {
-    }
-
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR const std::string& Export::GetName() const
-    {
-        return m_Name;
-    }
-
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR std::uintptr_t Export::GetAddress() const
-    {
-        return m_Address;
-    }
-}
-#pragma endregion

@@ -7,81 +7,54 @@ namespace blackbase
     class Pattern
     {
     private:
-        /**
-         * @brief Holds the known bytes of the pattern.
-         */
         std::vector<std::uint8_t> m_Bytes;
-
-        /**
-         * @brief Holds the mask for the pattern.
-         * The mask is used to ignore certain bytes in the pattern.
-         */
         std::vector<std::uint8_t> m_Mask;
 
     public:
-        /**
-         * @brief Constructs a Pattern object with default values.
-         * This constructor initializes the pattern with empty byte and mask vectors.
-         */
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Pattern() BLACKBASE_NOEXCEPT = default;
-
-        /**
-         * @brief Constructs a Pattern object with the specified pattern and mask.
-         * @param pattern The byte pattern to be used (eg. "A1 B2 C3 00").
-         * @param mask The mask corresponding to the pattern (eg. "x x ? ?").
-         */
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Pattern(const std::string_view& pattern, const std::string_view& mask);
+        inline constexpr Pattern() noexcept = default;
+        inline constexpr Pattern(const std::string_view& pattern, const std::string_view& mask);
     
-        /**
-         * @brief Constructs a Pattern object from a combo pattern string.
-         * The combo pattern is a string that combines the pattern and mask.
-         * @param comboPattern The combined pattern and mask string (eg. "A1 B2 ? C3 ?").
-         */
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Pattern(const std::string_view& comboPattern);
+        inline constexpr Pattern(const std::string_view& comboPattern);
 
-        /**
-         * @brief Gets the byte pattern of the Pattern object.
-         * @return A constant reference to the vector of bytes representing the pattern.
-         */
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR const std::vector<std::uint8_t>& GetBytes() const BLACKBASE_NOEXCEPT;
+        inline constexpr const std::vector<std::uint8_t>& GetBytes() const noexcept
+        {
+            return m_Bytes;
+        }
 
-        /**
-         * @brief Gets the mask of the Pattern object.
-         * The mask is used to indicate which bytes in the pattern are significant.
-         * @return A constant reference to the vector of bytes representing the mask.
-         */
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR const std::vector<std::uint8_t>& GetMask() const BLACKBASE_NOEXCEPT;
+        inline constexpr const std::vector<std::uint8_t>& GetMask() const noexcept
+        {
+            return m_Mask;
+        }
 
     private:
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR void ParsePattern(const std::string_view& pattern, const std::string_view& mask);
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR void ParseComboPattern(const std::string_view& comboPattern);
+        inline constexpr void ParsePattern(const std::string_view& pattern, const std::string_view& mask);
+        inline constexpr void ParseComboPattern(const std::string_view& comboPattern);
     };
 }
 
 #pragma region Pattern Implementation
 namespace blackbase
 {
-    BLACKBASE_CONSTEXPR Pattern::Pattern(const std::string_view& pattern, const std::string_view& mask)
+    constexpr int HexValue(const char c)
+    {
+        return 
+            (c >= '0' && c <= '9') ? (c - '0') :
+            (c >= 'A' && c <= 'F') ? (c - 'A' + 10) :
+            (c >= 'a' && c <= 'f') ? (c - 'a' + 10) :
+            throw "Invalid hex character";
+    }
+
+    inline constexpr Pattern::Pattern(const std::string_view& pattern, const std::string_view& mask)
     {
         ParsePattern(pattern, mask);
     }
 
-    BLACKBASE_CONSTEXPR Pattern::Pattern(const std::string_view& comboPattern)
+    inline constexpr Pattern::Pattern(const std::string_view& comboPattern)
     {
         ParseComboPattern(comboPattern);
     }
 
-    BLACKBASE_CONSTEXPR const std::vector<std::uint8_t>& Pattern::GetBytes() const BLACKBASE_NOEXCEPT
-    {
-        return m_Bytes;
-    }
-
-    BLACKBASE_CONSTEXPR const std::vector<std::uint8_t>& Pattern::GetMask() const BLACKBASE_NOEXCEPT
-    {
-        return m_Mask;
-    }
-
-    BLACKBASE_CONSTEXPR void Pattern::ParsePattern(const std::string_view& pattern, const std::string_view& mask)
+    inline constexpr void Pattern::ParsePattern(const std::string_view& pattern, const std::string_view& mask)
     {
         m_Bytes.clear();
         m_Mask.clear();
@@ -155,7 +128,7 @@ namespace blackbase
             runtime_throw<std::invalid_argument>(xorstr_("Pattern and mask lengths do not match"));
     }
 
-    BLACKBASE_CONSTEXPR void Pattern::ParseComboPattern(const std::string_view& comboPattern)
+    constexpr void Pattern::ParseComboPattern(const std::string_view& comboPattern)
     {
         auto skipSpaces = [](std::string_view& sv, std::size_t& index)
         {

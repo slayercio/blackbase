@@ -16,43 +16,43 @@ namespace blackbase
         int m_ProcessId;
 
     public:
-        BLACKBASE_FORCEINLINE static Process GetCurrent() BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE static std::optional<Process> FindByName(const std::string& name) BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE static std::optional<Process> FindById(int processId) BLACKBASE_NOEXCEPT;
+        inline static Process GetCurrent() noexcept;
+        inline static std::optional<Process> FindByName(const std::string& name) noexcept;
+        inline static std::optional<Process> FindById(int processId) noexcept;
 
     public:
-        BLACKBASE_FORCEINLINE const std::string& GetName() const BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE int GetProcessId() const BLACKBASE_NOEXCEPT;    
+        inline const std::string& GetName() const noexcept;
+        inline int GetProcessId() const noexcept;    
 
     public:
-        BLACKBASE_FORCEINLINE std::optional<Match> FindFirst(const Pattern& pattern) const BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE std::vector<Match> FindAll(const Pattern& pattern) const BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE Match& ResolveRelative(Match& match, std::ptrdiff_t offset = Match::LoadEffectiveAddressOffset) const BLACKBASE_NOEXCEPT;
+        inline std::optional<Match> FindFirst(const Pattern& pattern) const noexcept;
+        inline std::vector<Match> FindAll(const Pattern& pattern) const noexcept;
+        inline Match& ResolveRelative(Match& match, std::ptrdiff_t offset = Match::LoadEffectiveAddressOffset) const noexcept;
 
     public:
-        BLACKBASE_FORCEINLINE std::optional<std::vector<std::uint8_t>> ReadMemory(std::uintptr_t address, std::size_t size) const BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE bool WriteMemory(std::uintptr_t address, const std::vector<std::uint8_t>& data) const BLACKBASE_NOEXCEPT;
+        inline std::optional<std::vector<std::uint8_t>> ReadMemory(std::uintptr_t address, std::size_t size) const noexcept;
+        inline bool WriteMemory(std::uintptr_t address, const std::vector<std::uint8_t>& data) const noexcept;
 
         template <typename T, typename std::enable_if_t<std::is_trivially_copyable_v<T>, int> = 0>
-        BLACKBASE_FORCEINLINE std::optional<T> ReadMemory(std::uintptr_t address) const BLACKBASE_NOEXCEPT;
+        inline std::optional<T> ReadMemory(std::uintptr_t address) const noexcept;
 
         template <typename T, typename std::enable_if_t<std::is_trivially_copyable_v<T>, int> = 0>
-        BLACKBASE_FORCEINLINE bool WriteMemory(std::uintptr_t address, const T& value) const BLACKBASE_NOEXCEPT;
+        inline bool WriteMemory(std::uintptr_t address, const T& value) const noexcept;
 
         template <typename T, typename std::enable_if_t<!std::is_trivially_copyable_v<T>, int> = 0>
-        BLACKBASE_FORCEINLINE std::optional<T> ReadMemory(std::uintptr_t address, std::function<T(std::vector<std::uint8_t>&)> converter, size_t size = sizeof(T)) const BLACKBASE_NOEXCEPT;
+        inline std::optional<T> ReadMemory(std::uintptr_t address, std::function<T(std::vector<std::uint8_t>&)> converter, size_t size = sizeof(T)) const noexcept;
 
         template <typename T, typename std::enable_if_t<!std::is_trivially_copyable_v<T>, int> = 0>
-        BLACKBASE_FORCEINLINE bool WriteMemory(std::uintptr_t address, const T& value, std::function<std::vector<std::uint8_t>(const T&)> converter) const BLACKBASE_NOEXCEPT;
+        inline bool WriteMemory(std::uintptr_t address, const T& value, std::function<std::vector<std::uint8_t>(const T&)> converter) const noexcept;
 
-        BLACKBASE_FORCEINLINE std::optional<std::string> ReadString(std::uintptr_t address, std::size_t maxLength = -1) const BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE bool WriteString(std::uintptr_t address, const std::string& value) const BLACKBASE_NOEXCEPT;
+        inline std::optional<std::string> ReadString(std::uintptr_t address, std::size_t maxLength = -1) const noexcept;
+        inline bool WriteString(std::uintptr_t address, const std::string& value) const noexcept;
 
     protected:
         Process(const std::string& name, int processId);
         Process(void* handle);
 
-        std::vector<Match> FindInternal(const Pattern& pattern, bool findAll) const BLACKBASE_NOEXCEPT;
+        std::vector<Match> FindInternal(const Pattern& pattern, bool findAll) const noexcept;
     };
 }
 
@@ -64,12 +64,12 @@ namespace blackbase
 
 namespace blackbase
 {
-    BLACKBASE_FORCEINLINE Process Process::GetCurrent() BLACKBASE_NOEXCEPT
+    inline Process Process::GetCurrent() noexcept
     {
         return Process(GetCurrentProcess());
     }
 
-    BLACKBASE_FORCEINLINE std::optional<Process> Process::FindByName(const std::string& name) BLACKBASE_NOEXCEPT
+    inline std::optional<Process> Process::FindByName(const std::string& name) noexcept
     {
         HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
         if (snapshot == INVALID_HANDLE_VALUE)
@@ -99,7 +99,7 @@ namespace blackbase
         return std::nullopt;
     }
 
-    BLACKBASE_FORCEINLINE std::optional<Process> Process::FindById(int processId) BLACKBASE_NOEXCEPT
+    inline std::optional<Process> Process::FindById(int processId) noexcept
     {
         HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
         if (snapshot == INVALID_HANDLE_VALUE)
@@ -129,17 +129,17 @@ namespace blackbase
         return std::nullopt;
     }
 
-    BLACKBASE_FORCEINLINE const std::string& Process::GetName() const BLACKBASE_NOEXCEPT
+    inline const std::string& Process::GetName() const noexcept
     {
         return m_Name;
     }
 
-    BLACKBASE_FORCEINLINE int Process::GetProcessId() const BLACKBASE_NOEXCEPT
+    inline int Process::GetProcessId() const noexcept
     {
         return m_ProcessId;
     }
 
-    BLACKBASE_FORCEINLINE std::optional<Match> Process::FindFirst(const Pattern& pattern) const BLACKBASE_NOEXCEPT
+    inline std::optional<Match> Process::FindFirst(const Pattern& pattern) const noexcept
     {
         const auto matches = FindInternal(pattern, false);
         if (!matches.empty())
@@ -150,12 +150,12 @@ namespace blackbase
         return std::nullopt;
     }
 
-    BLACKBASE_FORCEINLINE std::vector<Match> Process::FindAll(const Pattern& pattern) const BLACKBASE_NOEXCEPT
+    inline std::vector<Match> Process::FindAll(const Pattern& pattern) const noexcept
     {
         return FindInternal(pattern, true);
     }
 
-    BLACKBASE_FORCEINLINE Match& Process::ResolveRelative(Match& match, std::ptrdiff_t offset) const BLACKBASE_NOEXCEPT
+    inline Match& Process::ResolveRelative(Match& match, std::ptrdiff_t offset) const noexcept
     {
         auto address = match.GetCurrentAddress();
         auto rva = ReadMemory<std::int32_t>(address + offset);
@@ -183,7 +183,7 @@ namespace blackbase
         m_ProcessId = ::GetProcessId(reinterpret_cast<HANDLE>(handle));
     }
 
-    std::vector<Match> Process::FindInternal(const Pattern& pattern, bool findAll) const BLACKBASE_NOEXCEPT
+    std::vector<Match> Process::FindInternal(const Pattern& pattern, bool findAll) const noexcept
     {
         std::vector<Match> matches;
 
@@ -249,7 +249,7 @@ namespace blackbase
         return matches;
     }
 
-    BLACKBASE_FORCEINLINE std::optional<std::vector<std::uint8_t>> Process::ReadMemory(std::uintptr_t address, std::size_t size) const BLACKBASE_NOEXCEPT
+    inline std::optional<std::vector<std::uint8_t>> Process::ReadMemory(std::uintptr_t address, std::size_t size) const noexcept
     {
         HANDLE hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION, FALSE, m_ProcessId);
         if (!hProcess)
@@ -277,7 +277,7 @@ namespace blackbase
         return std::nullopt;
     }
 
-    BLACKBASE_FORCEINLINE bool Process::WriteMemory(std::uintptr_t address, const std::vector<std::uint8_t>& data) const BLACKBASE_NOEXCEPT
+    inline bool Process::WriteMemory(std::uintptr_t address, const std::vector<std::uint8_t>& data) const noexcept
     {
         HANDLE hProcess = OpenProcess(PROCESS_VM_WRITE | PROCESS_VM_OPERATION, FALSE, m_ProcessId);
         if (!hProcess)
@@ -306,7 +306,7 @@ namespace blackbase
     }
 
     template <typename T, typename std::enable_if_t<std::is_trivially_copyable_v<T>, int>>
-    BLACKBASE_FORCEINLINE std::optional<T> Process::ReadMemory(std::uintptr_t address) const BLACKBASE_NOEXCEPT
+    inline std::optional<T> Process::ReadMemory(std::uintptr_t address) const noexcept
     {
         auto bufferOpt = ReadMemory(address, sizeof(T));
         if (bufferOpt && bufferOpt->size() == sizeof(T))
@@ -319,7 +319,7 @@ namespace blackbase
     }
 
     template <typename T, typename std::enable_if_t<std::is_trivially_copyable_v<T>, int>>
-    BLACKBASE_FORCEINLINE bool Process::WriteMemory(std::uintptr_t address, const T& value) const BLACKBASE_NOEXCEPT
+    inline bool Process::WriteMemory(std::uintptr_t address, const T& value) const noexcept
     {
         std::vector<std::uint8_t> data(sizeof(T));
         std::memcpy(data.data(), &value, sizeof(T));
@@ -327,7 +327,7 @@ namespace blackbase
     }
 
     template <typename T, typename std::enable_if_t<!std::is_trivially_copyable_v<T>, int>>
-    BLACKBASE_FORCEINLINE std::optional<T> Process::ReadMemory(std::uintptr_t address, std::function<T(std::vector<std::uint8_t>&)> converter, size_t size) const BLACKBASE_NOEXCEPT
+    inline std::optional<T> Process::ReadMemory(std::uintptr_t address, std::function<T(std::vector<std::uint8_t>&)> converter, size_t size) const noexcept
     {
         auto bufferOpt = ReadMemory(address, size);
         if (bufferOpt)
@@ -339,13 +339,13 @@ namespace blackbase
     }
 
     template <typename T, typename std::enable_if_t<!std::is_trivially_copyable_v<T>, int>>
-    BLACKBASE_FORCEINLINE bool Process::WriteMemory(std::uintptr_t address, const T& value, std::function<std::vector<std::uint8_t>(const T&)> converter) const BLACKBASE_NOEXCEPT
+    inline bool Process::WriteMemory(std::uintptr_t address, const T& value, std::function<std::vector<std::uint8_t>(const T&)> converter) const noexcept
     {
         auto data = converter(value);
         return WriteMemory(address, data);
     }
 
-    BLACKBASE_FORCEINLINE std::optional<std::string> Process::ReadString(std::uintptr_t address, std::size_t maxLength) const BLACKBASE_NOEXCEPT
+    inline std::optional<std::string> Process::ReadString(std::uintptr_t address, std::size_t maxLength) const noexcept
     {
         std::string result;
         std::size_t length = 0;
@@ -365,7 +365,7 @@ namespace blackbase
         return result;
     }
 
-    BLACKBASE_FORCEINLINE bool Process::WriteString(std::uintptr_t address, const std::string& value) const BLACKBASE_NOEXCEPT
+    inline bool Process::WriteString(std::uintptr_t address, const std::string& value) const noexcept
     {
         std::vector<std::uint8_t> data(value.begin(), value.end());
         data.push_back('\0'); // Null-terminate the string

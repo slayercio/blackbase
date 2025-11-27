@@ -13,25 +13,25 @@ namespace blackbase
         std::string    m_Name;
 
     public:
-        static BLACKBASE_FORCEINLINE std::optional<Library> FindByName(const std::string_view& name) BLACKBASE_NOEXCEPT;
-        static BLACKBASE_FORCEINLINE std::optional<Library> FindByAddress(std::uintptr_t address) BLACKBASE_NOEXCEPT;
-        static BLACKBASE_FORCEINLINE std::vector<Library> FindAll() BLACKBASE_NOEXCEPT;
+        static inline std::optional<Library> FindByName(const std::string_view& name);
+        static inline std::optional<Library> FindByAddress(std::uintptr_t address);
+        static inline std::vector<Library> FindAll();
 
-        static BLACKBASE_FORCEINLINE std::optional<Library> GetCurrent() BLACKBASE_NOEXCEPT;
-
-    public:
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Library() BLACKBASE_NOEXCEPT = default;
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Library(std::uintptr_t baseAddress, std::uintptr_t endAddress, const std::string& name) BLACKBASE_NOEXCEPT;
+        static inline std::optional<Library> GetCurrent();
 
     public:
-        BLACKBASE_FORCEINLINE std::optional<Export> GetExport(const std::string_view& name) const BLACKBASE_NOEXCEPT;
+        inline Library() = default;
+        inline Library(std::uintptr_t baseAddress, std::uintptr_t endAddress, const std::string& name);
 
     public:
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR std::uintptr_t GetBaseAddress() const BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR std::uintptr_t GetEndAddress() const BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR const std::string& GetName() const BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR const std::size_t GetSize() const BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR bool IsValid() const BLACKBASE_NOEXCEPT;
+        inline std::optional<Export> GetExport(const std::string_view& name) const;
+
+    public:
+        inline std::uintptr_t GetBaseAddress() const;
+        inline std::uintptr_t GetEndAddress() const;
+        inline const std::string& GetName() const;
+        inline const std::size_t GetSize() const;
+        inline const bool IsValid() const;
     };
 }
 
@@ -44,7 +44,7 @@ namespace blackbase
 
     namespace windows
     {
-        inline PPEB GetPeb() BLACKBASE_NOEXCEPT
+        inline PPEB GetPeb()
         {
             #if defined(_M_X64)
                 PTEB teb = reinterpret_cast<PTEB>(__readgsqword(reinterpret_cast<DWORD_PTR>(&static_cast<NT_TIB*>(nullptr)->Self)));
@@ -55,7 +55,7 @@ namespace blackbase
             return teb->ProcessEnvironmentBlock;
         }
 
-        inline void ForEachLibrary(const std::function<bool(PLDR_DATA_TABLE_ENTRY)>& callback) BLACKBASE_NOEXCEPT
+        inline void ForEachLibrary(const std::function<bool(PLDR_DATA_TABLE_ENTRY)>& callback)
         {
             auto peb = GetPeb();
             if (!peb || !peb->Ldr)
@@ -77,37 +77,37 @@ namespace blackbase
         }
     }
 
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Library::Library(std::uintptr_t baseAddress, std::uintptr_t endAddress, const std::string& name) BLACKBASE_NOEXCEPT
+    inline Library::Library(std::uintptr_t baseAddress, std::uintptr_t endAddress, const std::string& name)
         : m_BaseAddress(baseAddress), m_EndAddress(endAddress), m_Name(name)
     {
     }
 
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR std::uintptr_t Library::GetBaseAddress() const BLACKBASE_NOEXCEPT
+    inline std::uintptr_t Library::GetBaseAddress() const
     {
         return m_BaseAddress;
     }
 
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR std::uintptr_t Library::GetEndAddress() const BLACKBASE_NOEXCEPT
+    inline std::uintptr_t Library::GetEndAddress() const
     {
         return m_EndAddress;
     }
 
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR const std::string& Library::GetName() const BLACKBASE_NOEXCEPT
+    inline const std::string& Library::GetName() const
     {
         return m_Name;
     }
 
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR const std::size_t Library::GetSize() const BLACKBASE_NOEXCEPT
+    inline const std::size_t Library::GetSize() const
     {
         return m_EndAddress - m_BaseAddress;
     }
 
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR bool Library::IsValid() const BLACKBASE_NOEXCEPT
+    inline const bool Library::IsValid() const
     {
         return m_BaseAddress != 0 && m_EndAddress > m_BaseAddress;
     }
 
-    BLACKBASE_FORCEINLINE std::optional<Library> Library::FindByName(const std::string_view& name) BLACKBASE_NOEXCEPT
+    inline std::optional<Library> Library::FindByName(const std::string_view& name)
     {
         std::optional<Library> library = std::nullopt;
 
@@ -124,16 +124,16 @@ namespace blackbase
                     ToString(std::wstring_view(myEntry->BaseDllName.Buffer, myEntry->BaseDllName.Length / sizeof(wchar_t)))
                 );
 
-                return true; // Stop iteration
+                return true;
             }
 
-            return false; // Continue iteration
+            return false;
         });
 
         return library;
     }
 
-    BLACKBASE_FORCEINLINE std::optional<Library> Library::FindByAddress(std::uintptr_t address) BLACKBASE_NOEXCEPT
+    inline std::optional<Library> Library::FindByAddress(std::uintptr_t address)
     {
         std::optional<Library> library = std::nullopt;
 
@@ -150,16 +150,16 @@ namespace blackbase
                     ToString(std::wstring_view(myEntry->BaseDllName.Buffer, myEntry->BaseDllName.Length / sizeof(wchar_t)))
                 );
 
-                return true; // Stop iteration
+                return true;
             }
 
-            return false; // Continue iteration
+            return false;
         });
 
         return library;
     }
 
-    BLACKBASE_FORCEINLINE std::vector<Library> Library::FindAll() BLACKBASE_NOEXCEPT
+    inline std::vector<Library> Library::FindAll()
     {
         std::vector<Library> libraries;
 
@@ -173,13 +173,13 @@ namespace blackbase
                 ToString(std::wstring_view(myEntry->BaseDllName.Buffer, myEntry->BaseDllName.Length / sizeof(wchar_t)))
             );
 
-            return false; // Continue iteration
+            return false;
         });
 
         return libraries;
     }
 
-    BLACKBASE_FORCEINLINE std::optional<Export> Library::GetExport(const std::string_view& name) const BLACKBASE_NOEXCEPT
+    inline std::optional<Export> Library::GetExport(const std::string_view& name) const
     {
         if (!IsValid())
         {
@@ -189,19 +189,19 @@ namespace blackbase
         auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(m_BaseAddress);
         if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
         {
-            return std::nullopt; // Not a valid DOS header
+            return std::nullopt;
         }
 
         auto ntHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(m_BaseAddress + dosHeader->e_lfanew);
         if (ntHeaders->Signature != IMAGE_NT_SIGNATURE)
         {
-            return std::nullopt; // Not a valid NT header
+            return std::nullopt;
         }
 
         auto exportDirectory = &ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
         if (exportDirectory->VirtualAddress == 0 || exportDirectory->Size == 0)
         {
-            return std::nullopt; // No export directory
+            return std::nullopt;
         }
 
         auto exportTable = reinterpret_cast<PIMAGE_EXPORT_DIRECTORY>(m_BaseAddress + exportDirectory->VirtualAddress);
@@ -227,11 +227,10 @@ namespace blackbase
         return std::nullopt;
     }
 
-    BLACKBASE_FORCEINLINE std::optional<Library> Library::GetCurrent() BLACKBASE_NOEXCEPT
+    inline std::optional<Library> Library::GetCurrent()
     {
         std::optional<Library> currentLibrary = std::nullopt;
 
-        // current module is the first module in the list
         windows::ForEachLibrary([&](PLDR_DATA_TABLE_ENTRY entry) -> bool
         {
             auto myEntry = reinterpret_cast<blackbase::windows::PLDR_DATA_TABLE_ENTRY>(entry);
@@ -244,10 +243,10 @@ namespace blackbase
                     ToString(std::wstring_view(myEntry->BaseDllName.Buffer, myEntry->BaseDllName.Length / sizeof(wchar_t)))
                 );
 
-                return true; // Stop iteration
+                return true;
             }
 
-            return false; // Continue iteration
+            return false;
         });
 
         return currentLibrary;

@@ -5,7 +5,7 @@
 
 namespace blackbase
 {
-    BLACKBASE_FORCEINLINE std::wstring ToWideString(const std::string_view& str) BLACKBASE_NOEXCEPT
+    inline std::wstring ToWideString(const std::string_view& str)
     {
         if (str.empty())
             return std::wstring();
@@ -16,7 +16,7 @@ namespace blackbase
         return wideStr;
     }
 
-    BLACKBASE_FORCEINLINE std::string ToString(const std::wstring_view& wstr) BLACKBASE_NOEXCEPT
+    inline std::string ToString(const std::wstring_view& wstr)
     {
         if (wstr.empty())
             return std::string();

@@ -13,80 +13,66 @@ namespace blackbase
         constexpr static std::ptrdiff_t LoadEffectiveAddressOffset = 0x3;
 
     public:
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Match() BLACKBASE_NOEXCEPT = default;
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Match(std::uintptr_t address) BLACKBASE_NOEXCEPT;
-
-    public:
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR std::uintptr_t GetCurrentAddress() const BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR std::uintptr_t GetMatchAddress() const BLACKBASE_NOEXCEPT;
-
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR bool IsValid() const BLACKBASE_NOEXCEPT;
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR operator bool() const BLACKBASE_NOEXCEPT;
-
-    public:
-        BLACKBASE_FORCEINLINE Match& ResolveRelative(std::ptrdiff_t offset = LoadEffectiveAddressOffset);
-
-    public:
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Match& Move(std::ptrdiff_t offset) BLACKBASE_NOEXCEPT;
-
-    public:
-        template <typename T, typename std::enable_if_t<std::is_pointer_v<T>, int> = 0>
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR T As() const BLACKBASE_NOEXCEPT
+        inline Match() = default;
+        inline Match(std::uintptr_t address) 
         {
-            return reinterpret_cast<T>(m_CurrentAddress);
+            m_CurrentAddress = address;
+            m_MatchAddress   = address;
         }
 
-        template <typename T, typename std::enable_if_t<!std::is_pointer_v<T>, int> = 0>
-        BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR T* As() const BLACKBASE_NOEXCEPT
+    public:
+        inline std::uintptr_t GetCurrentAddress() const noexcept
         {
-            return reinterpret_cast<T*>(m_CurrentAddress);
+            return m_CurrentAddress;
+        }
+        
+        inline std::uintptr_t GetMatchAddress() const noexcept 
+        {
+            return m_MatchAddress;
+        }
+
+        inline bool IsValid() const noexcept
+        {
+            return m_MatchAddress != 0;
+        }
+
+        inline operator bool() const noexcept
+        {
+            return IsValid();
+        }
+
+    public:
+        inline Match& ResolveRelative(std::ptrdiff_t offset = LoadEffectiveAddressOffset)
+        {
+            std::int32_t relativeOffset = *reinterpret_cast<std::int32_t*>(m_CurrentAddress + offset);
+
+            this->Move(offset);
+            this->Move(sizeof(relativeOffset));
+            this->Move(relativeOffset);
+
+            return *this;
+        }
+
+    public:
+        inline Match& Move(std::ptrdiff_t offset) noexcept
+        {
+            m_CurrentAddress += offset;
+            return *this;
+        }
+
+    public:
+        template <typename T>
+        inline T As() const noexcept
+        {
+            // If T is not a pointer type, dereference the address to get the value.
+            if constexpr (!std::is_pointer_v<T>)
+            {
+                return *reinterpret_cast<T*>(m_MatchAddress);
+            }
+            else
+            {
+                return reinterpret_cast<T>(m_MatchAddress);
+            }
         }
     };
 }
-
-#pragma region Implementation
-namespace blackbase
-{
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Match::Match(std::uintptr_t address) BLACKBASE_NOEXCEPT
-        : m_CurrentAddress(address), m_MatchAddress(address)
-    {
-    }
-
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR std::uintptr_t Match::GetCurrentAddress() const BLACKBASE_NOEXCEPT
-    {
-        return m_CurrentAddress;
-    }
-
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR std::uintptr_t Match::GetMatchAddress() const BLACKBASE_NOEXCEPT
-    {
-        return m_MatchAddress;
-    }
-
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR bool Match::IsValid() const BLACKBASE_NOEXCEPT
-    {
-        return m_MatchAddress != 0;
-    }
-
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Match::operator bool() const BLACKBASE_NOEXCEPT
-    {
-        return IsValid();
-    }
-
-    BLACKBASE_FORCEINLINE Match& Match::ResolveRelative(std::ptrdiff_t offset)
-    {
-        std::int32_t relativeOffset = *reinterpret_cast<std::int32_t*>(m_CurrentAddress + offset);
-        Move(offset);
-        Move(sizeof(relativeOffset));
-        Move(relativeOffset);
-
-        return *this;
-    }
-
-    BLACKBASE_FORCEINLINE BLACKBASE_CONSTEXPR Match& Match::Move(std::ptrdiff_t offset) BLACKBASE_NOEXCEPT
-    {
-        m_CurrentAddress += offset;
-        
-        return *this;
-    }
-}
-#pragma endregion
