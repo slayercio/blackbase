@@ -67,11 +67,11 @@ namespace blackbase
             // If T is not a pointer type, dereference the address to get the value.
             if constexpr (!std::is_pointer_v<T>)
             {
-                return *reinterpret_cast<T*>(m_MatchAddress);
+                return *reinterpret_cast<T*>(m_CurrentAddress);
             }
             else
             {
-                return reinterpret_cast<T>(m_MatchAddress);
+                return reinterpret_cast<T>(m_CurrentAddress);
             }
         }
     };
