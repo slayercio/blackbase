@@ -21,6 +21,7 @@ namespace blackbase::functional
             void* this_ptr;
             void(*deleter)(void*);
             void* stub_ptr;
+            bool auto_delete;
         };
 
         struct FunctionWrapStorage
@@ -46,7 +47,7 @@ namespace blackbase::functional
                         data.deleter(data.this_ptr);
                     }
 
-                    if (data.stub_ptr)
+                    if (data.stub_ptr && data.auto_delete)
                     {
                         VirtualFree(data.stub_ptr, 0, MEM_RELEASE);
                     }
@@ -59,7 +60,7 @@ namespace blackbase::functional
         static FunctionWrapStorage s_WrapStorage;
     }
 
-    void* FunctionWrapper::create_thunk(void* this_ptr, void* dispatch_ptr, deleter_t deleter)
+    void* FunctionWrapper::create_thunk(void* this_ptr, void* dispatch_ptr, deleter_t deleter, bool auto_delete)
     {
         constexpr std::size_t thunk_size = 32;
 
@@ -87,6 +88,7 @@ namespace blackbase::functional
         data.this_ptr = this_ptr;
         data.deleter = deleter;
         data.stub_ptr = stub;
+        data.auto_delete = auto_delete;
         detail::s_WrapStorage.add(std::move(data));
 
         return stub;

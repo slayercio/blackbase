@@ -49,12 +49,12 @@ namespace blackbase::functional
     private:
         using deleter_t = void(*)(void*);
 
-        static void* create_thunk(void* this_ptr, void* dispatch_ptr, deleter_t deleter);
+        static void* create_thunk(void* this_ptr, void* dispatch_ptr, deleter_t deleter, bool auto_delete);
         static void* read_r10();
 
     public:
         template<typename R, typename... Args, typename F>
-        static typename function_traits<R(Args...)>::ptr wrap(F&& f)
+        static typename function_traits<R(Args...)>::ptr wrap(F&& f, bool auto_delete = true)
         {
             struct thunk_generator
             {
