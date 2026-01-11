@@ -79,7 +79,7 @@ namespace blackbase::functional
             };
 
             auto wrapper = new thunk_generator(std::forward<F>(f));
-            auto stub = create_thunk(wrapper, reinterpret_cast<void*>(&thunk_generator::call), &thunk_generator::deleter);
+            auto stub = create_thunk(wrapper, reinterpret_cast<void*>(&thunk_generator::call), &thunk_generator::deleter, auto_delete);
             return reinterpret_cast<typename function_traits<R(Args...)>::ptr>(stub);
         }
     };
