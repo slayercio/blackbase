@@ -25,6 +25,7 @@ namespace blackbase
 
     public:
         inline std::optional<Export> GetExport(const std::string_view& name) const;
+        inline std::vector<Export> GetAllExports() const;
 
     public:
         inline std::uintptr_t GetBaseAddress() const;
@@ -225,6 +226,53 @@ namespace blackbase
         }
 
         return std::nullopt;
+    }
+
+    inline std::vector<Export> Library::GetAllExports() const
+    {
+        std::vector<Export> exports;    
+
+        if (!IsValid())
+        {
+            return exports;
+        }
+
+        auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(m_BaseAddress);
+        if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
+        {
+            return exports;
+        }
+
+        auto ntHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(m_BaseAddress + dosHeader->e_lfanew);
+        if (ntHeaders->Signature != IMAGE_NT_SIGNATURE)
+        {
+            return exports;
+        }
+
+        auto exportDirectory = &ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+        if (exportDirectory->VirtualAddress == 0 || exportDirectory->Size == 0)
+        {
+            return exports;
+        }
+
+        auto exportTable = reinterpret_cast<PIMAGE_EXPORT_DIRECTORY>(m_BaseAddress + exportDirectory->VirtualAddress);
+
+        auto names = reinterpret_cast<PDWORD>(m_BaseAddress + exportTable->AddressOfNames);
+        auto functions = reinterpret_cast<PDWORD>(m_BaseAddress + exportTable->AddressOfFunctions);
+        auto ordinals = reinterpret_cast<PWORD>(m_BaseAddress + exportTable->AddressOfNameOrdinals);
+
+        for (size_t i = 0; i < exportTable->NumberOfNames; ++i)
+        {
+            const char* exportName = reinterpret_cast<const char*>(m_BaseAddress + names[i]);
+
+            std::uint16_t ordinal = ordinals[i];
+            std::uint32_t rva = functions[ordinal];
+            std::uintptr_t address = m_BaseAddress + rva;
+
+            exports.emplace_back(exportName, address);
+        }
+
+        return exports;
     }
 
     inline std::optional<Library> Library::GetCurrent()

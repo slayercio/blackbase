@@ -31,6 +31,191 @@ namespace blackbase
 #pragma region Implementation
 namespace blackbase
 {
+    #ifdef BLACKBASE_IMPL_AVX2
+        #include <immintrin.h>
+        inline bool MatchAVX2(
+            const std::uint8_t* data,
+            const std::uint8_t* patternBytes,
+            const std::uint8_t* patternMask,
+            std::size_t size
+        )
+        {
+            std::size_t i = 0;
+
+            for(; i + 32 <= size; i += 32)
+            {
+                __m256i d = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(data + i));
+                __m256i p = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(patternBytes + i));
+                __m256i m = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(patternMask + i));
+
+                __m256i diff = _mm256_xor_si256(d, p);
+                __m256i masked = _mm256_and_si256(diff, m);
+
+                if (!_mm256_testz_si256(masked, masked))
+                {
+                    return false;
+                }
+            }
+
+            for (; i + 16 <= size; i += 16)
+            {
+                __m128i d = _mm_loadu_si128(reinterpret_cast<const __m128i*>(data + i));
+                __m128i p = _mm_loadu_si128(reinterpret_cast<const __m128i*>(patternBytes + i));
+                __m128i m = _mm_loadu_si128(reinterpret_cast<const __m128i*>(patternMask + i));
+                
+                __m128i diff = _mm_xor_si128(d, p);
+                __m128i masked = _mm_and_si128(diff, m);
+
+                if (!_mm_testz_si128(masked, masked))
+                {
+                    return false;
+                }
+            }
+
+            for (; i < size; i++)
+            {
+                if (patternMask[i] && patternBytes[i] != data[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    #endif
+
+    #ifdef BLACKBASE_IMPL_SSE2
+        #include <emmintrin.h>
+
+        inline bool ScanSSE2(
+            const std::uint8_t* data,
+            const std::uint8_t* patternBytes,
+            const std::uint8_t* patternMask,
+            std::size_t size
+        )
+        {
+            std::size_t i = 0;
+
+            for (; i + 16 <= size; i += 16)
+            {
+                __m128i d = _mm_loadu_si128(reinterpret_cast<const __m128i*>(data + i));
+                __m128i p = _mm_loadu_si128(reinterpret_cast<const __m128i*>(patternBytes + i));
+                __m128i m = _mm_loadu_si128(reinterpret_cast<const __m128i*>(patternMask + i));
+                
+                __m128i diff = _mm_xor_si128(d, p);
+                __m128i masked = _mm_and_si128(diff, m);
+
+                if (!_mm_testz_si128(masked, masked))
+                {
+                    return false;
+                }
+            }
+
+            for (; i < size; i++)
+            {
+                if (patternMask[i] && patternBytes[i] != data[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    #endif
+
+    inline bool ScanRaw(
+        const std::uint8_t* data,
+        const std::uint8_t* patternBytes,
+        const std::uint8_t* patternMask,
+        std::size_t size
+    )
+    {
+        for (std::size_t i = 0; i < size; i++)
+        {
+            if (patternMask[i] && patternBytes[i] != data[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    #include <intrin.h>
+    inline bool HasSSE2Support()
+    {
+        int info[4];
+        __cpuid(info, 1);
+
+        return (info[3] & (1 << 26)) != 0;
+    }
+
+    inline bool HasAVX2Support()
+    {
+        int info[4];
+        __cpuidex(info, 7, 0);
+
+        return (info[1] & (1 << 5)) != 0;
+    }
+
+    enum ScanMode
+    {
+        AVX2,
+        SSE2,
+        Raw
+    };
+
+    inline ScanMode GetBestScanMode()
+    {
+        static ScanMode mode = []() {
+            if (HasAVX2Support())
+            {
+                return ScanMode::AVX2;
+            }
+            else if (HasSSE2Support())
+            {
+                return ScanMode::SSE2;
+            }
+            else
+            {
+                return ScanMode::Raw;
+            }
+        }();
+
+        return mode;
+    }
+
+    inline bool MatchPattern(
+        const std::uint8_t* data,
+        const std::uint8_t* patternBytes,
+        const std::uint8_t* patternMask,
+        std::size_t size
+    )
+    {
+        if (size == 0 || (patternMask[0] && data[0] != patternBytes[0]))
+        {
+            // Quick check to avoid unnecessary SIMD processing if the first byte doesn't match.
+
+            return false;
+        }
+
+        switch (GetBestScanMode())
+        {
+        #ifdef BLACKBASE_IMPL_AVX2
+            case ScanMode::AVX2:
+                return MatchAVX2(data, patternBytes, patternMask, size);
+        #endif
+
+        #ifdef BLACKBASE_IMPL_SSE2
+            case ScanMode::SSE2:
+                return ScanSSE2(data, patternBytes, patternMask, size);
+        #endif
+
+            default:
+                return ScanRaw(data, patternBytes, patternMask, size);
+        }
+    }
+
     inline Matcher::Matcher(const std::string_view& moduleName) noexcept
         : m_ModuleBase(0), m_ModuleEnd(0)
     {
@@ -87,21 +272,12 @@ namespace blackbase
 
                 for (size_t i = 0; i <= bytesToCheck - patternSize; i++)
                 {
-                    bool match = true;
-
-                    for(size_t j = 0; j < patternSize; j++)
+                    if (!MatchPattern(address + i, patternBytes.data(), patternMask.data(), patternSize))
                     {
-                        if (patternMask[j] > 0 && patternBytes[j] != address[i + j])
-                        {
-                            match = false;
-                            break;
-                        }
+                        continue;
                     }
 
-                    if (match)
-                    {
-                        matches.emplace_back(currentAddress + i);
-                    }
+                    matches.emplace_back(currentAddress + i);
                 }
             }
 
@@ -155,21 +331,12 @@ namespace blackbase
 
                 for (size_t i = 0; i <= bytesToCheck - patternSize; i++)
                 {
-                    bool match = true;
-
-                    for(size_t j = 0; j < patternSize; j++)
+                    if (!MatchPattern(address + i, patternBytes.data(), patternMask.data(), patternSize))
                     {
-                        if (patternMask[j] > 0 && patternBytes[j] != address[i + j])
-                        {
-                            match = false;
-                            break;
-                        }
+                        continue;
                     }
 
-                    if (match)
-                    {
-                        return Match{ currentAddress + i };
-                    }
+                    return Match{ currentAddress + i };
                 }
             }
 
