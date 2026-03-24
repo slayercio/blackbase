@@ -20,21 +20,6 @@ target_compile_definitions(blackbase
 option(BLACKBASE_BUILD_TESTS "Build tests for BlackBase" ON)
 option(BLACKBASE_USE_STD_STACKTRACE "Use std::stacktrace for debugging" ON)
 
-option(BLACKBASE_IMPL_AVX2 "Enable AVX2 optimizations in pattern matcher (if supported at runtime)" ON)
-option(BLACKBASE_IMPL_SSE2 "Enable SSE2 optimizations in pattern matcher (if supported at runtime)" ON)
-
-if (BLACKBASE_IMPL_AVX2)
-    target_compile_definitions(blackbase 
-        INTERFACE BLACKBASE_IMPL_AVX2
-    )
-endif()
-
-if (BLACKBASE_IMPL_SSE2)
-    target_compile_definitions(blackbase 
-        INTERFACE BLACKBASE_IMPL_SSE2
-    )
-endif()
-
 if (BLACKBASE_USE_STD_STACKTRACE)
     target_compile_definitions(blackbase 
         INTERFACE USE_STD_STACKTRACE
