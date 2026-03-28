@@ -9,6 +9,13 @@
 
 namespace blackbase
 {
+    struct Module
+    {
+        std::uintptr_t BaseAddress;
+        std::uintptr_t EndAddress;
+        std::string Name;
+    };
+
     class Process
     {
     private:
@@ -17,7 +24,7 @@ namespace blackbase
 
     public:
         inline static Process GetCurrent() noexcept;
-        inline static std::optional<Process> FindByName(const std::string& name) noexcept;
+        inline static std::optional<Process> FindByName(const std::string& name, bool partial = false) noexcept;
         inline static std::optional<Process> FindById(int processId) noexcept;
 
     public:
@@ -25,9 +32,12 @@ namespace blackbase
         inline int GetProcessId() const noexcept;    
 
     public:
-        inline std::optional<Match> FindFirst(const Pattern& pattern) const noexcept;
-        inline std::vector<Match> FindAll(const Pattern& pattern) const noexcept;
+        inline std::optional<Match> FindFirst(const Pattern& pattern, std::optional<std::string> moduleName = std::nullopt) const noexcept;
+        inline std::vector<Match> FindAll(const Pattern& pattern, std::optional<std::string> moduleName = std::nullopt) const noexcept;
         inline Match& ResolveRelative(Match& match, std::ptrdiff_t offset = Match::LoadEffectiveAddressOffset) const noexcept;
+
+    public:
+        inline std::vector<Module> GetModules() const noexcept;
 
     public:
         inline std::optional<std::vector<std::uint8_t>> ReadMemory(std::uintptr_t address, std::size_t size) const noexcept;
@@ -52,7 +62,8 @@ namespace blackbase
         Process(const std::string& name, int processId);
         Process(void* handle);
 
-        std::vector<Match> FindInternal(const Pattern& pattern, bool findAll) const noexcept;
+        std::vector<Match> FindInternal(const Pattern& pattern, bool findAll, std::optional<std::string> moduleName = std::nullopt) const noexcept;
+        std::vector<Module> GetModulesInternal() const noexcept;
     };
 }
 
@@ -69,7 +80,7 @@ namespace blackbase
         return Process(GetCurrentProcess());
     }
 
-    inline std::optional<Process> Process::FindByName(const std::string& name) noexcept
+    inline std::optional<Process> Process::FindByName(const std::string& name, bool partial) noexcept
     {
         HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
         if (snapshot == INVALID_HANDLE_VALUE)
@@ -87,7 +98,7 @@ namespace blackbase
         {
             do
             {
-                if (name == entry.szExeFile)
+                if (name == entry.szExeFile || (partial && std::string(entry.szExeFile).find(name) != std::string::npos))
                 {
                     CloseHandle(snapshot);
                     return Process(entry.szExeFile, entry.th32ProcessID);
@@ -139,9 +150,9 @@ namespace blackbase
         return m_ProcessId;
     }
 
-    inline std::optional<Match> Process::FindFirst(const Pattern& pattern) const noexcept
+    inline std::optional<Match> Process::FindFirst(const Pattern& pattern, std::optional<std::string> moduleName) const noexcept
     {
-        const auto matches = FindInternal(pattern, false);
+        const auto matches = FindInternal(pattern, false, moduleName);
         if (!matches.empty())
         {
             return matches.front();
@@ -150,9 +161,9 @@ namespace blackbase
         return std::nullopt;
     }
 
-    inline std::vector<Match> Process::FindAll(const Pattern& pattern) const noexcept
+    inline std::vector<Match> Process::FindAll(const Pattern& pattern, std::optional<std::string> moduleName) const noexcept
     {
-        return FindInternal(pattern, true);
+        return FindInternal(pattern, true, moduleName);
     }
 
     inline Match& Process::ResolveRelative(Match& match, std::ptrdiff_t offset) const noexcept
@@ -183,7 +194,7 @@ namespace blackbase
         m_ProcessId = ::GetProcessId(reinterpret_cast<HANDLE>(handle));
     }
 
-    std::vector<Match> Process::FindInternal(const Pattern& pattern, bool findAll) const noexcept
+    std::vector<Match> Process::FindInternal(const Pattern& pattern, bool findAll, std::optional<std::string> moduleName) const noexcept
     {
         std::vector<Match> matches;
 
@@ -198,7 +209,33 @@ namespace blackbase
         MEMORY_BASIC_INFORMATION mbi;
 
         std::uintptr_t address = 0;
-        while (VirtualQueryEx(hProcess, reinterpret_cast<LPCVOID>(address), &mbi, sizeof(mbi)) == sizeof(mbi))
+        std::uintptr_t maxAddress = 0;
+
+        if (moduleName)
+        {
+            auto modules = GetModulesInternal();
+            auto it = std::find_if(modules.begin(), modules.end(), [&](const Module& mod)
+            {
+                return mod.Name == *moduleName;
+            });
+
+            if (it == modules.end())
+            {
+                CloseHandle(hProcess);
+                return matches;
+            }
+
+            address = it->BaseAddress;
+            maxAddress = it->EndAddress;
+        }
+        else
+        {
+            SYSTEM_INFO sysInfo;
+            GetSystemInfo(&sysInfo);
+            maxAddress = reinterpret_cast<std::uintptr_t>(sysInfo.lpMaximumApplicationAddress);
+        }
+
+        while (VirtualQueryEx(hProcess, reinterpret_cast<LPCVOID>(address), &mbi, sizeof(mbi)) == sizeof(mbi) && address < maxAddress)
         {
             if (mbi.State == MEM_COMMIT && (mbi.Protect & (PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_READONLY | PAGE_READWRITE)) && !(mbi.Protect & PAGE_GUARD))
             {
@@ -370,6 +407,43 @@ namespace blackbase
         std::vector<std::uint8_t> data(value.begin(), value.end());
         data.push_back('\0'); // Null-terminate the string
         return WriteMemory(address, data);
+    }
+
+    inline std::vector<Module> Process::GetModules() const noexcept
+    {
+        return GetModulesInternal();
+    }
+
+    inline std::vector<Module> Process::GetModulesInternal() const noexcept
+    {
+        std::vector<Module> modules;
+
+        HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, m_ProcessId);
+        if (snapshot == INVALID_HANDLE_VALUE)
+        {
+            return modules;
+        }
+
+        #undef MODULEENTRY32
+        #undef Module32First
+        #undef Module32Next
+
+        MODULEENTRY32 entry;
+        entry.dwSize = sizeof(MODULEENTRY32);
+        if (Module32First(snapshot, &entry))
+        {
+            do
+            {
+                modules.push_back(Module{
+                    reinterpret_cast<std::uintptr_t>(entry.modBaseAddr),
+                    reinterpret_cast<std::uintptr_t>(entry.modBaseAddr) + entry.modBaseSize,
+                    entry.szModule
+                });
+            } while (Module32Next(snapshot, &entry));
+        }
+
+        CloseHandle(snapshot);
+        return modules;
     }
 }
 
