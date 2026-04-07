@@ -19,85 +19,72 @@ namespace blackbase::functional
         struct FunctionWrapData
         {
             void* this_ptr;
-            void(*deleter)(void*);
+            std::size_t size;
+            ThunkAllocator::deleter_t deleter;
             void* stub_ptr;
-            bool auto_delete;
+            bool auto_delete;       
         };
 
         struct FunctionWrapStorage
         {
-            std::vector<FunctionWrapData> data_storage;
-            std::mutex storage_mutex;
+            std::vector<FunctionWrapData> wraps;
+            std::mutex mutex;
 
-            std::size_t add(FunctionWrapData&& data)
+            void add_wrap(const FunctionWrapData& data)
             {
-                std::lock_guard lock(storage_mutex);
-                data_storage.push_back(std::move(data));
-                return data_storage.size() - 1;
+                std::lock_guard lock(mutex);
+                wraps.push_back(data);
             }
 
             ~FunctionWrapStorage()
             {
-                std::lock_guard lock(storage_mutex);
-
-                for (auto& data : data_storage)
+                for (const auto& data : wraps)
                 {
-                    if (data.deleter)
+                    if (data.auto_delete && data.deleter)
                     {
                         data.deleter(data.this_ptr);
-                    }
-
-                    if (data.stub_ptr && data.auto_delete)
-                    {
-                        VirtualFree(data.stub_ptr, 0, MEM_RELEASE);
+                        ThunkAllocator::deallocate(data.stub_ptr, data.size);
                     }
                 }
-
-                data_storage.clear();
             }
         };
 
         static FunctionWrapStorage s_WrapStorage;
     }
 
-    void* FunctionWrapper::create_thunk(void* this_ptr, void* dispatch_ptr, deleter_t deleter, bool auto_delete)
+    void* ThunkAllocator::allocate(std::size_t size, std::size_t alignment)
     {
-        constexpr std::size_t thunk_size = 32;
-
-        void* stub = VirtualAlloc(nullptr, thunk_size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-        if (!stub)
-        {
-            return nullptr;
-        }
-
-        unsigned char* code = reinterpret_cast<unsigned char*>(stub);
-        // mov r10, this_ptr
-        *code++ = 0x49; *code++ = 0xBA;
-        *reinterpret_cast<void**>(code) = this_ptr;
-        code += sizeof(void*);
-
-        // mov rax, dispatch_ptr
-        *code++ = 0x48; *code++ = 0xB8;
-        *reinterpret_cast<void**>(code) = dispatch_ptr;
-        code += sizeof(void*);
-
-        // jmp rax
-        *code++ = 0xFF; *code++ = 0xE0;
-    
-        detail::FunctionWrapData data;
-        data.this_ptr = this_ptr;
-        data.deleter = deleter;
-        data.stub_ptr = stub;
-        data.auto_delete = auto_delete;
-        detail::s_WrapStorage.add(std::move(data));
-
-        return stub;
+        return VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     }
 
-    void* FunctionWrapper::read_r10()
+    void ThunkAllocator::deallocate(void* ptr, std::size_t size)
     {
-        using read_r10_t = void* (*)();
-        auto func = reinterpret_cast<read_r10_t>(reinterpret_cast<unsigned char*>(blackbase_read_r10_stub));
-        return func();
+        if (ptr)
+        {
+            VirtualFree(ptr, 0, MEM_RELEASE);
+        }
+    }
+
+    void ThunkAllocator::track(void* this_ptr, void* stub_ptr, std::size_t size, bool auto_delete, deleter_t deleter)
+    {
+        if (stub_ptr)
+        {
+            detail::FunctionWrapData data;
+            data.this_ptr = this_ptr;
+            data.size = size;
+            data.deleter = deleter;
+            data.stub_ptr = stub_ptr;
+            data.auto_delete = auto_delete;
+            detail::s_WrapStorage.add_wrap(data);
+        }
+    }
+    
+    void ThunkAllocator::finish(void* ptr, std::size_t size)
+    {
+        if (ptr)
+        {
+            DWORD oldProtect;
+            VirtualProtect(ptr, size, PAGE_EXECUTE_READ, &oldProtect);
+        }
     }
 }
