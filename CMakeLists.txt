@@ -32,6 +32,8 @@ if (BLACKBASE_USE_STD_STACKTRACE)
 endif()
 
 if (BLACKBASE_BUILD_TESTS)
+    enable_testing()
+
     file(GLOB_RECURSE TEST_SOURCES "test/*.cpp")
     foreach(TEST_SOURCE ${TEST_SOURCES})
         get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
@@ -44,5 +46,7 @@ if (BLACKBASE_BUILD_TESTS)
             PUBLIC $<$<CONFIG:Debug>:DEBUG>
             PUBLIC $<$<CONFIG:Release>:NDEBUG>
         )
+
+        add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
     endforeach()
 endif()
