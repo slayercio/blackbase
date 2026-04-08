@@ -54,6 +54,16 @@ namespace blackbase::functional
         static void finish(void* stub_ptr, std::size_t size);
     };
 
+    struct PagedThunkAllocator
+    {
+        using deleter_t = void(*)(void*);
+
+        static void* allocate(std::size_t size, std::size_t alignment = alignof(std::max_align_t));
+        static void deallocate(void* stub_ptr, std::size_t size);
+        static void track(void* this_ptr, void* stub_ptr, std::size_t size, bool auto_delete, deleter_t deleter = nullptr);
+        static void finish(void* stub_ptr, std::size_t size);
+    };
+
     template<typename A>
     concept Allocator = requires(A a, std::size_t size)
     {
@@ -70,7 +80,7 @@ namespace blackbase::functional
         inline static void* create_thunk(void* this_ptr, void* dispatch_ptr, typename A::deleter_t deleter, bool auto_delete)
         {
             constexpr std::size_t thunk_size = 32;
-            void* stub = A::allocate(thunk_size);
+            void* stub = A::allocate(thunk_size, 1); // ignore alignment
             if (!stub)
             {
                 return nullptr;
@@ -110,7 +120,7 @@ namespace blackbase::functional
                 }
 
                 #pragma pack(push, 1)
-                struct ReadR10Code
+                struct alignas(1) ReadR10Code
                 {
                     uint8_t mov_rax_r10[3] = { 0x4C, 0x8B, 0xD0 }; // mov rax, r10
                     uint8_t ret[1] = { 0xC3 }; // ret
