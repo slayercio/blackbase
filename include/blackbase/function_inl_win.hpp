@@ -2,15 +2,12 @@
 #include <windows.h>
 #include <vector>
 #include <mutex>
+#include <utility>
+#include <functional>
+#include <memory>
+#include <set>
 
 #include <blackbase/functional.hpp>
-
-#pragma section(".blackbase_func", read, execute)
-__declspec(allocate(".blackbase_func")) unsigned char blackbase_read_r10_stub[] =
-{
-    0x4C, 0x89, 0xD0,       // mov rax, r10
-    0xC3                    // ret
-};
 
 namespace blackbase::functional
 {
@@ -19,85 +16,196 @@ namespace blackbase::functional
         struct FunctionWrapData
         {
             void* this_ptr;
-            void(*deleter)(void*);
+            std::size_t size;
+            ThunkAllocator::deleter_t deleter;
+            std::function<void(void*, std::size_t)> deallocator;
             void* stub_ptr;
-            bool auto_delete;
+            bool auto_delete;       
         };
 
         struct FunctionWrapStorage
         {
-            std::vector<FunctionWrapData> data_storage;
-            std::mutex storage_mutex;
+            std::vector<FunctionWrapData> wraps;
+            std::mutex mutex;
 
-            std::size_t add(FunctionWrapData&& data)
+            void add_wrap(const FunctionWrapData& data)
             {
-                std::lock_guard lock(storage_mutex);
-                data_storage.push_back(std::move(data));
-                return data_storage.size() - 1;
+                std::lock_guard lock(mutex);
+                wraps.push_back(data);
             }
 
             ~FunctionWrapStorage()
             {
-                std::lock_guard lock(storage_mutex);
-
-                for (auto& data : data_storage)
+                for (const auto& data : wraps)
                 {
-                    if (data.deleter)
+                    if (data.auto_delete && data.deleter)
                     {
                         data.deleter(data.this_ptr);
                     }
 
-                    if (data.stub_ptr && data.auto_delete)
+                    if (data.stub_ptr && data.deallocator)
                     {
-                        VirtualFree(data.stub_ptr, 0, MEM_RELEASE);
+                        data.deallocator(data.stub_ptr, data.size);
                     }
                 }
-
-                data_storage.clear();
             }
         };
 
         static FunctionWrapStorage s_WrapStorage;
+
+        struct PagedAllocatorStorage
+        {   
+            static constexpr std::size_t DEFAULT_PAGE_SIZE = 128 * 1024; // 128KB
+
+            static inline std::size_t align_up(std::size_t value, std::size_t alignment)
+            {
+                return (value + alignment - 1) & ~(alignment - 1);
+            }
+
+            struct Page
+            {
+                std::uintptr_t base;
+                std::size_t size;
+                std::mutex mutex;
+                
+                std::size_t cursor = 0;
+
+                Page(std::uintptr_t base, std::size_t size) : base(base), size(size)
+                {
+                }
+            };
+
+            std::vector<std::shared_ptr<Page>> pages{};
+            std::mutex mutex;
+
+            std::shared_ptr<Page> add_page(std::size_t size)
+            {
+                void* mem = VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+                if (!mem)
+                {
+                    throw std::bad_alloc();
+                }
+
+                return pages.emplace_back(std::make_shared<Page>(reinterpret_cast<std::uintptr_t>(mem), size));
+            }
+
+            std::set<void*> already_allocated; // debug
+
+            std::pair<void*, std::size_t> allocate(std::size_t size, std::size_t alignment)
+            {
+                std::lock_guard lock(mutex);
+                for (auto& page : pages)
+                {
+                    std::lock_guard page_lock(page->mutex);
+                    std::size_t aligned = align_up(page->cursor, alignment);
+                    if (aligned + size <= page->size)
+                    {
+                        void* ptr = reinterpret_cast<void*>(page->base + aligned);
+                        page->cursor = aligned + size;
+                        return { ptr, size };
+                    }
+                }
+
+                std::size_t page_size = align_up(size, DEFAULT_PAGE_SIZE);
+                std::shared_ptr<Page> new_page = add_page(page_size);
+
+                std::size_t aligned = align_up(new_page->cursor, alignment);
+                new_page->cursor = aligned + size;
+
+                return { reinterpret_cast<void*>(new_page->base + aligned), size };
+            }
+
+            ~PagedAllocatorStorage()
+            {
+                for (auto& page : pages)
+                {
+                    VirtualFree(reinterpret_cast<void*>(page->base), 0, MEM_RELEASE);
+                }
+            }
+        };
+
+        static PagedAllocatorStorage s_PagedStorage;
     }
 
-    void* FunctionWrapper::create_thunk(void* this_ptr, void* dispatch_ptr, deleter_t deleter, bool auto_delete)
+    void* ThunkAllocator::allocate(std::size_t size, std::size_t alignment)
     {
-        constexpr std::size_t thunk_size = 32;
+        return VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    }
 
-        void* stub = VirtualAlloc(nullptr, thunk_size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-        if (!stub)
+    void ThunkAllocator::deallocate(void* ptr, std::size_t size)
+    {
+        if (ptr)
         {
-            return nullptr;
+            VirtualFree(ptr, 0, MEM_RELEASE);
+        }
+    }
+
+    void ThunkAllocator::track(void* this_ptr, void* stub_ptr, std::size_t size, bool auto_delete, deleter_t deleter)
+    {
+        if (stub_ptr)
+        {
+            detail::FunctionWrapData data;
+            data.this_ptr = this_ptr;
+            data.size = size;
+            data.deleter = deleter;
+            data.stub_ptr = stub_ptr;
+            data.auto_delete = auto_delete;
+            data.deallocator = [](void* ptr, std::size_t size)
+            {
+                ThunkAllocator::deallocate(ptr, size);
+            };
+            detail::s_WrapStorage.add_wrap(data);
+        }
+    }
+    
+    void ThunkAllocator::finish(void* ptr, std::size_t size)
+    {
+        if (ptr)
+        {
+            DWORD oldProtect;
+            VirtualProtect(ptr, size, PAGE_EXECUTE_READ, &oldProtect);
+        }
+    }
+
+    void* PagedThunkAllocator::allocate(std::size_t size, std::size_t alignment)
+    {
+        auto [ptr, alloc_size] = detail::s_PagedStorage.allocate(size, alignment);
+        auto it = detail::s_PagedStorage.already_allocated.find(ptr);
+        if (it != detail::s_PagedStorage.already_allocated.end())
+        {
+            __debugbreak(); // double allocation of the same pointer, something went wrong
         }
 
-        unsigned char* code = reinterpret_cast<unsigned char*>(stub);
-        // mov r10, this_ptr
-        *code++ = 0x49; *code++ = 0xBA;
-        *reinterpret_cast<void**>(code) = this_ptr;
-        code += sizeof(void*);
-
-        // mov rax, dispatch_ptr
-        *code++ = 0x48; *code++ = 0xB8;
-        *reinterpret_cast<void**>(code) = dispatch_ptr;
-        code += sizeof(void*);
-
-        // jmp rax
-        *code++ = 0xFF; *code++ = 0xE0;
-    
-        detail::FunctionWrapData data;
-        data.this_ptr = this_ptr;
-        data.deleter = deleter;
-        data.stub_ptr = stub;
-        data.auto_delete = auto_delete;
-        detail::s_WrapStorage.add(std::move(data));
-
-        return stub;
+        detail::s_PagedStorage.already_allocated.insert(ptr);
+        
+        return ptr;
     }
 
-    void* FunctionWrapper::read_r10()
+    void PagedThunkAllocator::deallocate(void* stub_ptr, std::size_t size)
     {
-        using read_r10_t = void* (*)();
-        auto func = reinterpret_cast<read_r10_t>(reinterpret_cast<unsigned char*>(blackbase_read_r10_stub));
-        return func();
+        // Deallocation is handled by the PagedAllocatorStorage destructor
+    }
+
+    void PagedThunkAllocator::track(void* this_ptr, void* stub_ptr, std::size_t size, bool auto_delete, deleter_t deleter)
+    {
+        if (stub_ptr)
+        {
+            detail::FunctionWrapData data;
+            data.this_ptr = this_ptr;
+            data.size = size;
+            data.deleter = deleter;
+            data.stub_ptr = stub_ptr;
+            data.auto_delete = auto_delete;
+            data.deallocator = [](void* ptr, std::size_t size)
+            {
+                // Deallocation is handled by the PagedAllocatorStorage destructor
+            };
+            detail::s_WrapStorage.add_wrap(data);
+        }
+    }
+
+    void PagedThunkAllocator::finish(void* ptr, std::size_t size)
+    {
+        // we need to keep the pages RWX to allow for dynamic code generation, so we won't change the protection here
     }
 }
